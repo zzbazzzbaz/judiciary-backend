@@ -134,6 +134,16 @@ class User(AbstractBaseUser):
 
         return self.role == self.Role.ADMIN
 
+    @property
+    def is_superuser(self) -> bool:
+        """
+        与 Django/第三方 Admin 组件兼容的 `is_superuser` 字段/属性。
+
+        说明：系统以 role=admin 作为超级管理员标识。
+        """
+
+        return self.role == self.Role.ADMIN
+
     def has_perm(self, perm, obj=None) -> bool:  # pragma: no cover
         """
         与 Django Admin 兼容的权限接口。
