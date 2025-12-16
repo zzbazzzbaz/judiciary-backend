@@ -1,8 +1,397 @@
 {% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    window.tailwind = window.tailwind || {};
+    tailwind.config = { corePlugins: { preflight: false } };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  {% if tencent_map_key %}
+    <script
+      id="tencent-map-sdk"
+      charset="utf-8"
+      src="https://map.qq.com/api/js?v=2.exp&key={{ tencent_map_key|urlencode }}&libraries=geometry"
+      onload="window.__tencentMapSdkLoaded = true;"
+      onerror="window.__tencentMapSdkLoadError = true;"
+    ></script>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="module">
-  <h2>网格统计</h2>
-  <p>暂未实现。</p>
-</div>
+  <div id="content-main">
+    {% if not tencent_map_key %}
+      <p class="errornote">
+        {% trans "未配置腾讯地图 Key：请在 settings 中配置 TENCENT_MAP_JS_KEY（推荐）或 TENCENT_MAP_KEY，或在「地图配置」中填写启用的 api_key。" %}
+      </p>
+    {% endif %}
+
+    <div class="flex gap-4 items-stretch">
+      <div class="flex-1 min-h-[560px] rounded-lg border border-gray-200 bg-white relative overflow-hidden">
+        <div id="grid-stat-map" class="absolute inset-0"></div>
+        <div class="absolute bottom-3 right-3 z-10 flex gap-2">
+          <button
+            type="button"
+            id="grid-stat-btn-center"
+            class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white/90 hover:bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {% trans "回到中心" %}
+          </button>
+        </div>
+      </div>
+
+      <div class="w-[420px] max-w-[45vw] flex flex-col gap-4">
+        <div class="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 class="text-base font-semibold text-gray-900">{% trans "统计" %}</h2>
+
+          <dl class="mt-3 divide-y divide-gray-100">
+            <div class="flex justify-between gap-4 py-2 text-sm">
+              <dt class="text-gray-500">{% trans "网格总数" %}</dt>
+              <dd class="font-semibold text-gray-900">{{ grids_total }}</dd>
+            </div>
+            <div class="flex justify-between gap-4 py-2 text-sm">
+              <dt class="text-gray-500">{% trans "启用网格" %}</dt>
+              <dd class="font-semibold text-gray-900">{{ grids_active }}</dd>
+            </div>
+            <div class="flex justify-between gap-4 py-2 text-sm">
+              <dt class="text-gray-500">{% trans "已配置边界" %}</dt>
+              <dd class="font-semibold text-gray-900">{{ grids_with_boundary }}</dd>
+            </div>
+            <div class="flex justify-between gap-4 py-2 text-sm">
+              <dt class="text-gray-500">{% trans "区域数量" %}</dt>
+              <dd class="font-semibold text-gray-900">{{ regions_total }}</dd>
+            </div>
+            <div class="flex justify-between gap-4 py-2 text-sm">
+              <dt class="text-gray-500">{% trans "调解员分配总数" %}</dt>
+              <dd class="font-semibold text-gray-900">{{ mediators_total }}</dd>
+            </div>
+          </dl>
+
+          <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500">
+            <span class="inline-flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-sm bg-blue-600"></span>{% trans "启用网格边界" %}
+            </span>
+            <span class="inline-flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-sm bg-gray-500"></span>{% trans "未启用网格边界" %}
+            </span>
+          </div>
+
+          <p class="mt-3 text-xs text-gray-500 leading-relaxed">
+            {% trans "地图初始中心点：" %} ({{ center_lng }}, {{ center_lat }}) / zoom={{ zoom_level }}<br>
+            {% trans "当前访问 Host：" %} {{ current_host }}<br>
+            {% trans "提示：Key 若开启 IP 白名单限制，通常无法用于前端 JS SDK；需要 JS Key（Referer/域名授权），并把当前 Host 加入白名单。" %}
+          </p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 class="text-base font-semibold text-gray-900">{% trans "网格列表" %}</h2>
+          <input
+            id="grid-stat-filter"
+            type="search"
+            class="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            placeholder="{% trans '搜索：网格名称/所属区域' %}"
+          >
+          <ul id="grid-stat-list" class="mt-3 space-y-2 max-h-[360px] overflow-auto"></ul>
+          <p id="grid-stat-empty" class="mt-3 text-xs text-gray-500 leading-relaxed hidden">
+            {% trans "暂无可显示的网格（需要为网格配置 boundary 且至少 3 个点）。" %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{ grids|json_script:"grids-data" }}
+
+  <script>
+    (function () {
+      var mapEl = document.getElementById("grid-stat-map");
+      var hasSdk = typeof window.qq !== "undefined" && window.qq.maps;
+      var loadError = !!window.__tencentMapSdkLoadError;
+      if (loadError || !hasSdk) {
+        mapEl.innerHTML = "<div style='padding:12px;color:#666;line-height:1.6;'>" +
+          "{% trans '腾讯地图 JS SDK 未加载/加载失败。' %}<br>" +
+          "{% trans '请检查：1) Key 是否开通 JavaScript API；2) Key 授权方式是否为 Referer/域名（IP 白名单 Key 通常不能用于浏览器端）；3) 网络是否可访问 map.qq.com。' %}" +
+          "</div>";
+        var btnCenter0 = document.getElementById("grid-stat-btn-center");
+        if (btnCenter0) btnCenter0.disabled = true;
+        return;
+      }
+
+      function toNumber(v, fallback) {
+        if (v === null || typeof v === "undefined") return fallback;
+        if (typeof v === "string" && v.trim() === "") return fallback;
+        var n = Number(v);
+        return isFinite(n) ? n : fallback;
+      }
+
+      function escapeHtml(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      var centerLat = toNumber("{{ center_lat }}", 39.9087);
+      var centerLng = toNumber("{{ center_lng }}", 116.3974);
+      var minZoom = toNumber("{{ min_zoom_level }}", 10);
+      var zoomLevel = Math.max(minZoom, toNumber("{{ zoom_level }}", minZoom));
+      var initialCenter = new qq.maps.LatLng(centerLat, centerLng);
+
+      var map = null;
+      try {
+        map = new qq.maps.Map(mapEl, {
+          center: initialCenter,
+          zoom: zoomLevel
+        });
+      } catch (err) {
+        mapEl.innerHTML = "<div style='padding:12px;color:#b30000;line-height:1.6;'>" +
+          "{% trans '地图初始化失败：' %}" + (err && err.message ? err.message : String(err)) + "<br>" +
+          "{% trans '常见原因：Key 未开通 JS API/授权方式不匹配（例如只做了 IP 白名单）。' %}" +
+          "</div>";
+        var btnCenter1 = document.getElementById("grid-stat-btn-center");
+        if (btnCenter1) btnCenter1.disabled = true;
+        return;
+      }
+
+      var dataEl = document.getElementById("grids-data");
+      var grids = [];
+      try {
+        grids = JSON.parse(dataEl && dataEl.textContent ? dataEl.textContent : "[]");
+      } catch (e) {
+        grids = [];
+      }
+
+      var listEl = document.getElementById("grid-stat-list");
+      var emptyEl = document.getElementById("grid-stat-empty");
+      var filterEl = document.getElementById("grid-stat-filter");
+
+      var polygonsById = {};
+      var markersById = {};
+      var selectedId = null;
+      var infoWin = new qq.maps.InfoWindow({ map: map });
+      var selectedItemClasses = ["border-blue-500", "bg-blue-50", "ring-1", "ring-blue-200"];
+
+      qq.maps.event.addListener(map, "zoom_changed", function () {
+        var z = typeof map.getZoom === "function" ? map.getZoom() : null;
+        if (typeof z === "number" && z < minZoom) {
+          map.setZoom(minZoom);
+        }
+      });
+
+      function setSelected(id) {
+        if (selectedId && polygonsById[selectedId]) {
+          polygonsById[selectedId].setOptions({ strokeWeight: 2, fillOpacity: 0.18 });
+        }
+        selectedId = (id === null || typeof id === "undefined") ? null : String(id);
+        if (selectedId && polygonsById[selectedId]) {
+          polygonsById[selectedId].setOptions({ strokeWeight: 3, fillOpacity: 0.26 });
+        }
+        // 列表高亮（Tailwind）
+        var items = listEl.querySelectorAll(".grid-stat-item");
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if (selectedId && String(it.getAttribute("data-id")) === String(selectedId)) {
+            for (var c1 = 0; c1 < selectedItemClasses.length; c1++) {
+              it.classList.add(selectedItemClasses[c1]);
+            }
+            try { it.scrollIntoView({ block: "nearest" }); } catch (e) {}
+          } else {
+            for (var c0 = 0; c0 < selectedItemClasses.length; c0++) {
+              it.classList.remove(selectedItemClasses[c0]);
+            }
+          }
+        }
+      }
+
+      function fitToPolygon(poly) {
+        if (!poly || !poly.getPath) return;
+        var path = poly.getPath();
+        if (!path || !path.getLength || path.getLength() < 3) return;
+        var b = new qq.maps.LatLngBounds();
+        for (var i = 0; i < path.getLength(); i++) {
+          b.extend(path.getAt(i));
+        }
+        if (typeof map.fitBounds === "function") {
+          map.fitBounds(b);
+        }
+      }
+
+      function openInfo(grid, position) {
+        var html =
+          "<div style='min-width:220px;line-height:1.6;'>" +
+          "<div style='font-weight:600;margin-bottom:6px;'>" + escapeHtml(grid.name) + "</div>" +
+          "<div style='color:#666;font-size:12px;'>" +
+          "{% trans '所属区域：' %}" + escapeHtml(grid.region || "-") + "<br>" +
+          "{% trans '负责人：' %}" + escapeHtml(grid.manager || "-") + "<br>" +
+          "{% trans '调解员数量：' %}" + escapeHtml(grid.mediator_count || 0) + "<br>" +
+          "{% trans '状态：' %}" + (grid.is_active ? "{% trans '启用' %}" : "{% trans '未启用' %}") +
+          "</div>" +
+          "</div>";
+        infoWin.setContent(html);
+        if (position) {
+          infoWin.setPosition(position);
+        }
+        infoWin.open();
+      }
+
+      function render() {
+        var bounds = new qq.maps.LatLngBounds();
+        var hasBounds = false;
+        var visibleGrids = [];
+
+        // 清理旧覆盖物（如果页面被 PJAX/缓存重复执行）
+        Object.keys(polygonsById).forEach(function (k) {
+          try { polygonsById[k].setMap(null); } catch (e) {}
+        });
+        Object.keys(markersById).forEach(function (k) {
+          try { markersById[k].setMap(null); } catch (e) {}
+        });
+        polygonsById = {};
+        markersById = {};
+        selectedId = null;
+
+        if (!Array.isArray(grids)) grids = [];
+
+        grids.forEach(function (grid) {
+          if (!grid || !Array.isArray(grid.boundary) || grid.boundary.length < 3) return;
+          var path = [];
+          for (var i = 0; i < grid.boundary.length; i++) {
+            var pt = grid.boundary[i];
+            if (!Array.isArray(pt) || pt.length < 2) continue;
+            var lng = Number(pt[0]);
+            var lat = Number(pt[1]);
+            if (!isFinite(lng) || !isFinite(lat)) continue;
+            var ll = new qq.maps.LatLng(lat, lng);
+            path.push(ll);
+            bounds.extend(ll);
+            hasBounds = true;
+          }
+          if (path.length < 3) return;
+
+          var active = !!grid.is_active;
+          var strokeColor = active ? "#2a7ae2" : "#8c8c8c";
+          var fillColor = active ? "#2a7ae2" : "#8c8c8c";
+          var poly = new qq.maps.Polygon({
+            map: map,
+            path: path,
+            strokeColor: strokeColor,
+            strokeWeight: 2,
+            fillColor: fillColor,
+            fillOpacity: 0.18
+          });
+          polygonsById[String(grid.id)] = poly;
+
+          qq.maps.event.addListener(poly, "click", function (evt) {
+            setSelected(String(grid.id));
+            fitToPolygon(poly);
+            openInfo(grid, evt && evt.latLng ? evt.latLng : null);
+          });
+
+          var cLng = toNumber(grid.center_lng, NaN);
+          var cLat = toNumber(grid.center_lat, NaN);
+          if (isFinite(cLng) && isFinite(cLat)) {
+            var marker = new qq.maps.Marker({
+              map: map,
+              position: new qq.maps.LatLng(cLat, cLng),
+              title: String(grid.name || "")
+            });
+            markersById[String(grid.id)] = marker;
+            qq.maps.event.addListener(marker, "click", function (evt) {
+              setSelected(String(grid.id));
+              openInfo(grid, evt && evt.latLng ? evt.latLng : null);
+              fitToPolygon(polygonsById[String(grid.id)]);
+            });
+          }
+
+          visibleGrids.push(grid);
+        });
+
+        if (hasBounds && typeof map.fitBounds === "function") {
+          map.fitBounds(bounds);
+        }
+
+        // 渲染列表
+        listEl.innerHTML = "";
+        if (visibleGrids.length === 0) {
+          emptyEl.classList.remove("hidden");
+          return;
+        }
+        emptyEl.classList.add("hidden");
+
+        visibleGrids.forEach(function (grid) {
+          var li = document.createElement("li");
+          li.className =
+            "grid-stat-item cursor-pointer rounded-md border border-gray-200 bg-white p-2 " +
+            "hover:border-blue-300 hover:bg-blue-50";
+          li.setAttribute("data-id", String(grid.id));
+          var badgeClass = grid.is_active
+            ? "text-green-700 border-green-200 bg-green-50"
+            : "text-gray-600 border-gray-200 bg-gray-50";
+          var badgeText = grid.is_active ? "{% trans '启用' %}" : "{% trans '未启用' %}";
+          li.innerHTML =
+            "<div class='flex items-start justify-between gap-2'>" +
+            "<div class='font-semibold text-gray-900 truncate'>" + escapeHtml(grid.name || "") + "</div>" +
+            "<span class='shrink-0 text-xs px-2 py-0.5 rounded-full border " + badgeClass + "'>" + badgeText + "</span>" +
+            "</div>" +
+            "<div class='mt-1 text-xs text-gray-500 leading-relaxed'>" +
+            "{% trans '区域：' %}" + escapeHtml(grid.region || "-") + " · " +
+            "{% trans '调解员：' %}" + escapeHtml(grid.mediator_count || 0) +
+            (grid.manager ? (" · {% trans '负责人：' %}" + escapeHtml(grid.manager)) : "") +
+            "</div>";
+
+          li.addEventListener("click", function () {
+            var id = String(grid.id);
+            setSelected(id);
+            fitToPolygon(polygonsById[id]);
+            openInfo(grid, null);
+          });
+          listEl.appendChild(li);
+        });
+      }
+
+      function applyFilter() {
+        var q = (filterEl.value || "").trim().toLowerCase();
+        var items = listEl.querySelectorAll(".grid-stat-item");
+        if (!q) {
+          for (var i = 0; i < items.length; i++) items[i].style.display = "";
+          return;
+        }
+        for (var j = 0; j < items.length; j++) {
+          var item = items[j];
+          var id = item.getAttribute("data-id");
+          var grid = null;
+          for (var k = 0; k < grids.length; k++) {
+            if (String(grids[k].id) === String(id)) { grid = grids[k]; break; }
+          }
+          if (!grid) {
+            item.style.display = "none";
+            continue;
+          }
+          var hay = (String(grid.name || "") + " " + String(grid.region || "")).toLowerCase();
+          item.style.display = hay.indexOf(q) !== -1 ? "" : "none";
+        }
+      }
+
+      filterEl.addEventListener("input", function () { applyFilter(); });
+
+      var btnCenter = document.getElementById("grid-stat-btn-center");
+      if (btnCenter) {
+        btnCenter.addEventListener("click", function () {
+          setSelected(null);
+          if (infoWin && typeof infoWin.close === "function") infoWin.close();
+          if (typeof map.panTo === "function") {
+            map.panTo(initialCenter);
+          } else {
+            map.setCenter(initialCenter);
+          }
+          map.setZoom(Math.max(minZoom, zoomLevel));
+        });
+      }
+
+      render();
+    })();
+  </script>
 {% endblock %}

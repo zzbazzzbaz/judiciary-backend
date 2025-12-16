@@ -30,7 +30,7 @@ class Attachment(models.Model):
 class MapConfig(models.Model):
     """地图配置表（common_map_config）。"""
 
-    zoom_level = models.IntegerField("缩放级别", default=12)
+    zoom_level = models.IntegerField("缩放级别(3-20)", default=12)
     center_longitude = models.DecimalField("中心点经度", max_digits=10, decimal_places=7)
     center_latitude = models.DecimalField("中心点纬度", max_digits=10, decimal_places=7)
     api_key = models.CharField("API密钥", max_length=255, blank=True, default="")
