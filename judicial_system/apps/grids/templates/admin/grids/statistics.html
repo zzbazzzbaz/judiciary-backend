@@ -80,7 +80,7 @@
           <p class="mt-3 text-xs text-gray-500 leading-relaxed">
             {% trans "地图初始中心点：" %} ({{ center_lng }}, {{ center_lat }}) / zoom={{ zoom_level }}<br>
             {% trans "当前访问 Host：" %} {{ current_host }}<br>
-            {% trans "提示：Key 若开启 IP 白名单限制，通常无法用于前端 JS SDK；需要 JS Key（Referer/域名授权），并把当前 Host 加入白名单。" %}
+{#            {% trans "提示：Key 若开启 IP 白名单限制，通常无法用于前端 JS SDK；需要 JS Key（Referer/域名授权），并把当前 Host 加入白名单。" %}#}
           </p>
         </div>
 
@@ -94,7 +94,7 @@
           >
           <ul id="grid-stat-list" class="mt-3 space-y-2 max-h-[360px] overflow-auto"></ul>
           <p id="grid-stat-empty" class="mt-3 text-xs text-gray-500 leading-relaxed hidden">
-            {% trans "暂无可显示的网格（需要为网格配置 boundary 且至少 3 个点）。" %}
+            {% trans "暂无可显示的网格。" %}
           </p>
         </div>
       </div>

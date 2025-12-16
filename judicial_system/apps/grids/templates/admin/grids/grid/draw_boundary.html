@@ -1,0 +1,468 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    window.tailwind = window.tailwind || {};
+    tailwind.config = { corePlugins: { preflight: false } };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  {% if tencent_map_key %}
+    <script
+      id="tencent-map-sdk"
+      charset="utf-8"
+      src="https://map.qq.com/api/js?v=2.exp&key={{ tencent_map_key|urlencode }}&libraries=drawing,geometry"
+      onload="window.__tencentMapSdkLoaded = true;"
+      onerror="window.__tencentMapSdkLoadError = true;"
+    ></script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    {% if not tencent_map_key %}
+      <p class="errornote">
+        {% trans "未配置腾讯地图 Key：请在 settings 中配置 TENCENT_MAP_JS_KEY（推荐）或 TENCENT_MAP_KEY，或在「地图配置」中填写启用的 api_key。" %}
+      </p>
+    {% endif %}
+
+    <div class="flex gap-4 items-stretch">
+      <div class="flex-1 min-h-[620px] rounded-lg border border-gray-200 bg-white relative overflow-hidden">
+        <div id="grid-boundary-map" class="absolute inset-0"></div>
+        <div class="absolute top-3 left-3 z-10 space-y-2">
+          <div class="rounded-md bg-white/90 px-3 py-2 shadow-sm border border-gray-200 text-xs text-gray-600">
+            <div class="font-semibold text-gray-800">{% trans "提示" %}</div>
+            <div class="mt-1 leading-relaxed">
+              {% trans "点击「开始绘制」后在地图上点击多个点，双击结束绘制。" %}<br>
+              {% trans "绘制完成后可拖拽顶点调整，坐标会自动更新。" %}
+            </div>
+          </div>
+          <div id="grid-boundary-status" class="hidden rounded-md bg-blue-50 px-3 py-2 shadow-sm border border-blue-200 text-xs text-blue-800"></div>
+        </div>
+      </div>
+
+      <div class="w-[420px] max-w-[45vw] flex flex-col gap-4">
+        <div class="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 class="text-base font-semibold text-gray-900">{% trans "边界绘制" %}</h2>
+
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              id="grid-boundary-btn-start"
+              class="px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              {% trans "开始绘制" %}
+            </button>
+            <button
+              type="button"
+              id="grid-boundary-btn-clear"
+              class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              {% trans "清除" %}
+            </button>
+            <button
+              type="button"
+              id="grid-boundary-btn-apply"
+              class="px-3 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              {% trans "应用到表单" %}
+            </button>
+            <button
+              type="button"
+              id="grid-boundary-btn-copy"
+              class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              {% trans "复制坐标" %}
+            </button>
+          </div>
+
+          <div class="mt-4">
+            <label for="grid-boundary-coords" class="block text-sm font-medium text-gray-700">
+              {% trans "边界坐标（[[lng, lat], ...]）" %}
+            </label>
+            <textarea
+              id="grid-boundary-coords"
+              readonly
+              class="mt-2 w-full min-h-[220px] rounded-md border border-gray-300 px-3 py-2 text-xs font-mono text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="{% trans '绘制完成后自动生成' %}"
+            ></textarea>
+          </div>
+
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <div>
+              <label for="grid-boundary-center-lng" class="block text-xs font-medium text-gray-600">
+                {% trans "中心点经度" %}
+              </label>
+              <input
+                id="grid-boundary-center-lng"
+                readonly
+                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-800 bg-gray-50"
+                placeholder="{% trans '自动计算' %}"
+              >
+            </div>
+            <div>
+              <label for="grid-boundary-center-lat" class="block text-xs font-medium text-gray-600">
+                {% trans "中心点纬度" %}
+              </label>
+              <input
+                id="grid-boundary-center-lat"
+                readonly
+                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-800 bg-gray-50"
+                placeholder="{% trans '自动计算' %}"
+              >
+            </div>
+          </div>
+
+          <p class="mt-4 text-xs text-gray-500 leading-relaxed">
+            {% trans "地图初始中心点：" %} ({{ center_lng }}, {{ center_lat }}) / zoom={{ zoom_level }}<br>
+            {% trans "当前访问 Host：" %} {{ current_host }}<br>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var mapEl = document.getElementById("grid-boundary-map");
+      var statusEl = document.getElementById("grid-boundary-status");
+      var hasSdk = typeof window.qq !== "undefined" && window.qq.maps;
+      var loadError = !!window.__tencentMapSdkLoadError;
+
+      var btnStart = document.getElementById("grid-boundary-btn-start");
+      var btnClear = document.getElementById("grid-boundary-btn-clear");
+      var btnApply = document.getElementById("grid-boundary-btn-apply");
+      var btnCopy = document.getElementById("grid-boundary-btn-copy");
+
+      var coordsView = document.getElementById("grid-boundary-coords");
+      var centerLngView = document.getElementById("grid-boundary-center-lng");
+      var centerLatView = document.getElementById("grid-boundary-center-lat");
+
+      var STORAGE_KEY = "judiciary.grids.grid.boundary_draft";
+
+      function setStatus(text, tone) {
+        if (!statusEl) return;
+        if (!text) {
+          statusEl.classList.add("hidden");
+          statusEl.textContent = "";
+          return;
+        }
+        statusEl.textContent = text;
+        statusEl.classList.remove("hidden");
+        statusEl.className = "rounded-md px-3 py-2 shadow-sm border text-xs " + (
+          tone === "error"
+            ? "bg-red-50 border-red-200 text-red-800"
+            : tone === "ok"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-blue-50 border-blue-200 text-blue-800"
+        );
+      }
+
+      function disableAll() {
+        if (btnStart) btnStart.disabled = true;
+        if (btnClear) btnClear.disabled = true;
+        if (btnApply) btnApply.disabled = true;
+        if (btnCopy) btnCopy.disabled = true;
+      }
+
+      function persistDraft(payload) {
+        try {
+          var data = {
+            type: "grids.grid.boundary",
+            ts: Date.now(),
+            id: String(Date.now()) + "-" + Math.random().toString(16).slice(2),
+            payload: payload || {}
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {}
+      }
+
+      if (loadError || !hasSdk) {
+        mapEl.innerHTML = "<div style='padding:12px;color:#666;line-height:1.6;'>" +
+          "{% trans '腾讯地图 JS SDK 未加载/加载失败。' %}<br>" +
+          "{% trans '请检查：1) Key 是否开通 JavaScript API；2) Key 授权方式是否为 Referer/域名（IP 白名单 Key 通常不能用于浏览器端）；3) 网络是否可访问 map.qq.com。' %}" +
+          "</div>";
+        disableAll();
+        return;
+      }
+
+      var map = null;
+      try {
+        var center = new qq.maps.LatLng(Number("{{ center_lat }}"), Number("{{ center_lng }}"));
+        map = new qq.maps.Map(mapEl, {
+          center: center,
+          zoom: Number("{{ zoom_level }}") || 14
+        });
+      } catch (err) {
+        mapEl.innerHTML = "<div style='padding:12px;color:#b30000;line-height:1.6;'>" +
+          "{% trans '地图初始化失败：' %}" + (err && err.message ? err.message : String(err)) + "<br>" +
+          "{% trans '常见原因：Key 未开通 JS API/授权方式不匹配（例如只做了 IP 白名单）。' %}" +
+          "</div>";
+        disableAll();
+        return;
+      }
+
+      var polygon = null;
+      var drawingManager = null;
+
+      function setOutputs(coords, centerLng, centerLat) {
+        var hasCoords = Array.isArray(coords) && coords.length >= 3;
+        coordsView.value = hasCoords ? JSON.stringify(coords) : "";
+        centerLngView.value = (centerLng != null && isFinite(centerLng)) ? Number(centerLng).toFixed(7) : "";
+        centerLatView.value = (centerLat != null && isFinite(centerLat)) ? Number(centerLat).toFixed(7) : "";
+        btnApply.disabled = !hasCoords;
+        btnCopy.disabled = !hasCoords;
+      }
+
+      function clearOutputs() {
+        setOutputs([], null, null);
+      }
+
+      function updateFromPolygon(p) {
+        if (!p) return;
+        var path = p.getPath();
+        var coords = [];
+        var minLng = null, maxLng = null, minLat = null, maxLat = null;
+        for (var i = 0; i < path.getLength(); i++) {
+          var ll = path.getAt(i);
+          var lng = ll.getLng();
+          var lat = ll.getLat();
+          coords.push([Number(lng.toFixed(7)), Number(lat.toFixed(7))]);
+          minLng = (minLng === null) ? lng : Math.min(minLng, lng);
+          maxLng = (maxLng === null) ? lng : Math.max(maxLng, lng);
+          minLat = (minLat === null) ? lat : Math.min(minLat, lat);
+          maxLat = (maxLat === null) ? lat : Math.max(maxLat, lat);
+        }
+        var centerLng = (minLng === null) ? null : (minLng + maxLng) / 2;
+        var centerLat = (minLat === null) ? null : (minLat + maxLat) / 2;
+        setOutputs(coords, centerLng, centerLat);
+      }
+
+      function attachPathListeners(p) {
+        var path = p.getPath();
+        qq.maps.event.addListener(path, "insert_at", function () { updateFromPolygon(p); });
+        qq.maps.event.addListener(path, "remove_at", function () { updateFromPolygon(p); });
+        qq.maps.event.addListener(path, "set_at", function () { updateFromPolygon(p); });
+      }
+
+      function clearPolygon() {
+        if (polygon) {
+          polygon.setMap(null);
+          polygon = null;
+        }
+        clearOutputs();
+        setStatus("", "");
+      }
+
+      function startDrawing() {
+        if (!qq.maps.drawing || !qq.maps.drawing.DrawingManager) {
+          setStatus("{% trans '当前 Key/SDK 未加载 drawing 库，无法使用绘制工具。' %}", "error");
+          return;
+        }
+
+        if (!drawingManager) {
+          drawingManager = new qq.maps.drawing.DrawingManager({
+            drawingMode: qq.maps.drawing.OverlayType.POLYGON,
+            drawingControl: false,
+            polygonOptions: {
+              strokeColor: "#2563eb",
+              strokeWeight: 2,
+              fillColor: "#2563eb",
+              fillOpacity: 0.18
+            }
+          });
+          drawingManager.setMap(map);
+
+          qq.maps.event.addListener(drawingManager, "overlaycomplete", function (event) {
+            if (polygon) {
+              polygon.setMap(null);
+            }
+            polygon = event.overlay;
+            if (polygon && polygon.setEditable) {
+              polygon.setEditable(true);
+            }
+            updateFromPolygon(polygon);
+            attachPathListeners(polygon);
+            setStatus("{% trans '绘制完成：可拖拽顶点调整，确认无误后点击「应用到表单」。' %}", "ok");
+            if (typeof drawingManager.close === "function") {
+              drawingManager.close();
+            }
+          });
+        }
+
+        drawingManager.setDrawingMode(qq.maps.drawing.OverlayType.POLYGON);
+        if (typeof drawingManager.open === "function") {
+          drawingManager.open();
+        }
+        setStatus("{% trans '正在绘制：点击多个点，双击结束。' %}", "info");
+      }
+
+      function dispatchValueChanged(el) {
+        if (!el) return;
+        try {
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        } catch (e) {}
+      }
+
+      function findInWindow(win, id, depth) {
+        depth = depth || 0;
+        if (!win || !win.document) return null;
+        var el = win.document.getElementById(id);
+        if (el) return el;
+        if (typeof id === "string" && id.indexOf("id_") === 0) {
+          try {
+            var byName = win.document.querySelector("[name='" + id.slice(3) + "']");
+            if (byName) return byName;
+          } catch (e) {}
+        }
+        if (depth >= 3) return null;
+        var iframes = win.document.getElementsByTagName("iframe");
+        for (var i = 0; i < iframes.length; i++) {
+          var frame = iframes[i];
+          try {
+            if (frame && frame.contentWindow) {
+              var el2 = findInWindow(frame.contentWindow, id, depth + 1);
+              if (el2) return el2;
+            }
+          } catch (e) {
+            // ignore cross-origin or access errors
+          }
+        }
+        return null;
+      }
+
+      function setOpenerField(id, value) {
+        if (!window.opener) return false;
+        var el = null;
+        try {
+          el = findInWindow(window.opener, id, 0);
+        } catch (e) {
+          el = null;
+        }
+        if (!el) return false;
+        el.value = value;
+        dispatchValueChanged(el);
+        return true;
+      }
+
+      function applyToForm() {
+        var boundaryJson = (coordsView.value || "").trim();
+        if (!boundaryJson) {
+          setStatus("{% trans '请先在地图上绘制边界。' %}", "error");
+          return;
+        }
+        var payload = {
+          boundary_json: boundaryJson,
+          center_lng: (centerLngView.value || "").trim(),
+          center_lat: (centerLatView.value || "").trim()
+        };
+
+        persistDraft(payload);
+
+        var ok1 = setOpenerField("id_boundary", payload.boundary_json);
+        var ok2 = true;
+        if (payload.center_lng) ok2 = setOpenerField("id_center_lng", payload.center_lng) && ok2;
+        if (payload.center_lat) ok2 = setOpenerField("id_center_lat", payload.center_lat) && ok2;
+
+        try {
+          if (window.opener && window.opener.postMessage) {
+            window.opener.postMessage({ type: "grids.grid.boundary", payload: payload }, window.location.origin);
+          }
+        } catch (e) {}
+
+        if (ok1) {
+          setStatus("{% trans '已应用到表单：请回到新增/编辑页保存。' %}", "ok");
+        } else {
+          setStatus("{% trans '已暂存坐标：回到新增/编辑页会自动填充；如未填充可手动复制。' %}", "info");
+        }
+      }
+
+      function copyCoords() {
+        var text = (coordsView.value || "").trim();
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(
+            function () { setStatus("{% trans '已复制到剪贴板。' %}", "ok"); },
+            function () { setStatus("{% trans '复制失败：请手动全选复制。' %}", "error"); }
+          );
+          return;
+        }
+        try {
+          coordsView.focus();
+          coordsView.select();
+          document.execCommand("copy");
+          setStatus("{% trans '已复制到剪贴板。' %}", "ok");
+        } catch (e) {
+          setStatus("{% trans '复制失败：请手动全选复制。' %}", "error");
+        }
+      }
+
+      function tryLoadFromOpener() {
+        if (!window.opener) return;
+        var boundaryEl = null;
+        try {
+          boundaryEl = findInWindow(window.opener, "id_boundary", 0);
+        } catch (e) {
+          boundaryEl = null;
+        }
+        if (!boundaryEl) return;
+        var raw = (boundaryEl.value || "").trim();
+        if (!raw) return;
+        var coords = null;
+        try {
+          coords = JSON.parse(raw);
+        } catch (e) {
+          return;
+        }
+        if (!Array.isArray(coords) || coords.length < 3) return;
+        var path = [];
+        coords.forEach(function (pt) {
+          if (!Array.isArray(pt) || pt.length < 2) return;
+          var lng = Number(pt[0]);
+          var lat = Number(pt[1]);
+          if (!isFinite(lng) || !isFinite(lat)) return;
+          path.push(new qq.maps.LatLng(lat, lng));
+        });
+        if (path.length < 3) return;
+
+        if (polygon) {
+          polygon.setMap(null);
+          polygon = null;
+        }
+        polygon = new qq.maps.Polygon({
+          map: map,
+          path: path,
+          strokeColor: "#2563eb",
+          strokeWeight: 2,
+          fillColor: "#2563eb",
+          fillOpacity: 0.18
+        });
+        if (polygon && polygon.setEditable) {
+          polygon.setEditable(true);
+        }
+        attachPathListeners(polygon);
+        updateFromPolygon(polygon);
+
+        try {
+          var bounds = new qq.maps.LatLngBounds();
+          for (var i = 0; i < path.length; i++) bounds.extend(path[i]);
+          if (typeof map.fitBounds === "function") map.fitBounds(bounds);
+        } catch (e) {}
+
+        setStatus("{% trans '已从表单加载现有边界：可直接编辑后再应用。' %}", "info");
+      }
+
+      btnStart.addEventListener("click", function () { startDrawing(); });
+      btnClear.addEventListener("click", function () { clearPolygon(); });
+      btnApply.addEventListener("click", function () { applyToForm(); });
+      btnCopy.addEventListener("click", function () { copyCoords(); });
+
+      clearOutputs();
+      tryLoadFromOpener();
+    })();
+  </script>
+{% endblock %}
