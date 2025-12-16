@@ -7,9 +7,7 @@ from .models import Activity, Article, Category, ContentAttachment, Document
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "code", "name", "is_template", "sort_order", "created_at")
-    search_fields = ("code", "name")
-    list_filter = ("is_template",)
+    list_display = ("id", "name", "sort_order", "created_at")
     ordering = ("sort_order", "id")
 
 

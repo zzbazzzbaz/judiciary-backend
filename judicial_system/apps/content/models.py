@@ -11,11 +11,9 @@ from django.db import models
 class Category(models.Model):
     """分类表（content_category）。"""
 
-    code = models.CharField(max_length=50, unique=True)  # 分类编码（唯一，如 law_doc/policy/template）
-    name = models.CharField(max_length=50)  # 分类名称
-    is_template = models.BooleanField(default=False)  # 是否文书模板分类
-    sort_order = models.IntegerField(default=0)  # 排序
-    created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
+    name = models.CharField("分类名称", max_length=50,unique=True)
+    sort_order = models.IntegerField("排序", default=0)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
 
     class Meta:
         db_table = "content_category"
@@ -36,28 +34,29 @@ class Article(models.Model):
         PUBLISHED = "published", "Published"
         ARCHIVED = "archived", "Archived"
 
-    title = models.CharField(max_length=200)  # 标题
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="articles")  # 分类
-    content = models.TextField(null=True, blank=True)  # 正文内容（可配合富文本）
-    cover_image = models.CharField(max_length=255, null=True, blank=True)  # 封面图片路径
-    video = models.CharField(max_length=255, null=True, blank=True)  # 视频路径
+    title = models.CharField("标题", max_length=200)
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="articles", verbose_name="分类")
+    content = models.TextField("正文内容", null=True, blank=True)
+    cover_image = models.CharField("封面图片", max_length=255, null=True, blank=True)
+    video = models.CharField("视频", max_length=255, null=True, blank=True)
     files = models.ManyToManyField(
         "ContentAttachment",
         blank=True,
         verbose_name="文章附件",
     )
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)  # 状态
-    sort_order = models.IntegerField(default=0)  # 排序
+    status = models.CharField("状态", max_length=20, choices=Status.choices, default=Status.DRAFT)
+    sort_order = models.IntegerField("排序", default=0)
     publisher = models.ForeignKey(
         "users.User",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="published_articles",
-    )  # 发布人
-    published_at = models.DateTimeField(null=True, blank=True)  # 发布时间
-    created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
-    updated_at = models.DateTimeField(auto_now=True)  # 更新时间
+        verbose_name="发布人",
+    )
+    published_at = models.DateTimeField("发布时间", null=True, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
         db_table = "content_article"

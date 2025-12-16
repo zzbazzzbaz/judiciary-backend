@@ -145,8 +145,27 @@ SIMPLEUI_CONFIG = {
             "models": [
                 {"name": "成员", "icon": "fas fa-chart-bar", "url": "users/user"},
                 {"name": "培训记录", "icon": "fas fa-chart-bar", "url": "users/trainingrecord/"},
-                {"name": "机构", "icon": "fas fa-chart-bar", "url": "users/organization/"},
                 {"name": "绩效", "icon": "fas fa-chart-bar", "url": "users/performancescore/"},
+            ]
+        }, {
+            "name": "法治宣传教育",
+            "icon": "fas fa-th-large",
+            "models": [
+                {"name": "文章分类", "icon": "fas fa-chart-bar", "url": "content/category/"},
+                {"name": "文章列表", "icon": "fas fa-chart-bar", "url": "content/article/"},
+                {"name": "活动列表", "icon": "fas fa-chart-bar", "url": "content/activity/"},
+            ]
+        }, {
+            "name": "文档管理",
+            "icon": "fas fa-th-large",
+            "models": [
+                {"name": "文档", "icon": "fas fa-chart-bar", "url": "content/document/"},
+            ]
+        }, {
+            "name": "机构管理",
+            "icon": "fas fa-th-large",
+            "models": [
+                {"name": "机构", "icon": "fas fa-chart-bar", "url": "users/organization/"},
             ]
         }
     ],
