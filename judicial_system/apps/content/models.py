@@ -6,6 +6,7 @@ Content 模块模型
 """
 
 from django.db import models
+from ckeditor.fields import RichTextField
 
 
 class Category(models.Model):
@@ -36,7 +37,7 @@ class Article(models.Model):
 
     title = models.CharField("标题", max_length=200)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="articles", verbose_name="分类")
-    content = models.TextField("正文内容", null=True, blank=True)
+    content = RichTextField("正文内容", null=True, blank=True)
     cover_image = models.CharField("封面图片", max_length=255, null=True, blank=True)
     video = models.CharField("视频", max_length=255, null=True, blank=True)
     files = models.ManyToManyField(
@@ -84,7 +85,7 @@ class Activity(models.Model):
     start_time = models.DateTimeField("开始时间")
     registration_start = models.DateTimeField("报名开始时间")
     registration_end = models.DateTimeField("报名结束时间")
-    content = models.TextField("活动内容", null=True, blank=True)
+    content = RichTextField("活动内容", null=True, blank=True)
     participants = models.ManyToManyField("users.User", blank=True, related_name="activities", verbose_name="报名列表")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
 

@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "django_filters",
     "corsheaders",
     "ckeditor",
+    "ckeditor_uploader",
     "apps.common.apps.CommonConfig",
     "apps.users.apps.UsersConfig",
     "apps.grids.apps.GridsConfig",
@@ -109,6 +110,16 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# CKEditor 配置
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_CONFIGS = {
+    "default": {
+        "toolbar": "full",
+        "height": 300,
+        "width": "100%",
+    },
 }
 
 REST_FRAMEWORK = {
