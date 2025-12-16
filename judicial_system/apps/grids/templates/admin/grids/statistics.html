@@ -183,11 +183,11 @@
 
       function setSelected(id) {
         if (selectedId && polygonsById[selectedId]) {
-          polygonsById[selectedId].setOptions({ strokeWeight: 2, fillOpacity: 0.18 });
+          polygonsById[selectedId].setOptions({ strokeWeight: 2, fillOpacity: 0 });
         }
         selectedId = (id === null || typeof id === "undefined") ? null : String(id);
         if (selectedId && polygonsById[selectedId]) {
-          polygonsById[selectedId].setOptions({ strokeWeight: 3, fillOpacity: 0.26 });
+          polygonsById[selectedId].setOptions({ strokeWeight: 3, fillOpacity: 0 });
         }
         // 列表高亮（Tailwind）
         var items = listEl.querySelectorAll(".grid-stat-item");
@@ -273,14 +273,13 @@
 
           var active = !!grid.is_active;
           var strokeColor = active ? "#2a7ae2" : "#8c8c8c";
-          var fillColor = active ? "#2a7ae2" : "#8c8c8c";
           var poly = new qq.maps.Polygon({
             map: map,
             path: path,
             strokeColor: strokeColor,
             strokeWeight: 2,
-            fillColor: fillColor,
-            fillOpacity: 0.18
+            fillColor: "#ffffff",
+            fillOpacity: 0
           });
           polygonsById[String(grid.id)] = poly;
 
