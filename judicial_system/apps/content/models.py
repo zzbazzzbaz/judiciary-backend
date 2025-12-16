@@ -19,6 +19,8 @@ class Category(models.Model):
 
     class Meta:
         db_table = "content_category"
+        verbose_name = "文章分类"
+        verbose_name_plural = verbose_name
 
     def __str__(self) -> str:  # pragma: no cover
         return self.name
@@ -59,6 +61,8 @@ class Article(models.Model):
 
     class Meta:
         db_table = "content_article"
+        verbose_name = "文章"
+        verbose_name_plural = verbose_name
 
     def __str__(self) -> str:  # pragma: no cover
         return self.title
