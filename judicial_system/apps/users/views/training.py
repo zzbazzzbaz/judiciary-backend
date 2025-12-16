@@ -56,4 +56,3 @@ class TrainingRecordDetailAPIView(APIView):
         record = get_object_or_404(TrainingRecord, id=pk)
         record.delete()
         return success_response(message="删除成功")
-

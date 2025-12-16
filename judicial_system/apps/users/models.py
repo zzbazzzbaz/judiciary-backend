@@ -14,25 +14,28 @@ from django.db import models
 class Organization(models.Model):
     """机构表（users_organization）。"""
 
-    name = models.CharField(max_length=100)  # 机构名称
-    type = models.CharField(max_length=50, null=True, blank=True)  # 机构类型
+    name = models.CharField("机构名称", max_length=100)
     parent = models.ForeignKey(
         "self",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="children",
+        verbose_name="上级机构",
     )  # 上级机构（自关联）
-    description = models.TextField(null=True, blank=True)  # 职能介绍
-    contact = models.CharField(max_length=50, null=True, blank=True)  # 联系方式
-    address = models.CharField(max_length=255, null=True, blank=True)  # 地址
-    sort_order = models.IntegerField(default=0)  # 排序
-    is_active = models.BooleanField(default=True)  # 是否启用
-    created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
-    updated_at = models.DateTimeField(auto_now=True)  # 更新时间
+    description = models.TextField("职能介绍", null=True, blank=True)
+    contact = models.CharField("联系方式", max_length=50, null=True, blank=True)
+    address = models.CharField("地址", max_length=255, null=True, blank=True)
+    sort_order = models.IntegerField("排序", default=0)
+    is_active = models.BooleanField("是否启用", default=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
         db_table = "users_organization"
+        verbose_name = "机构"
+        verbose_name_plural = verbose_name
+        ordering = ["sort_order", "id"]
 
     def __str__(self) -> str:  # pragma: no cover
         return self.name
@@ -81,37 +84,39 @@ class User(AbstractBaseUser):
     class Gender(models.TextChoices):
         """性别（male/female）。"""
 
-        MALE = "male", "Male"
-        FEMALE = "female", "Female"
+        MALE = "male", "男"
+        FEMALE = "female", "女"
 
     class Role(models.TextChoices):
         """身份角色（admin/grid_manager/mediator）。"""
 
-        ADMIN = "admin", "Admin"
-        GRID_MANAGER = "grid_manager", "Grid Manager"
-        MEDIATOR = "mediator", "Mediator"
+        ADMIN = "admin", "管理员"
+        GRID_MANAGER = "grid_manager", "网格负责人"
+        MEDIATOR = "mediator", "调解员"
 
-    username = models.CharField(max_length=50, unique=True)  # 用户名（登录账号，唯一）
-    name = models.CharField(max_length=50)  # 姓名
+    username = models.CharField("用户名", max_length=50, unique=True)
+    name = models.CharField("姓名", max_length=50)
     gender = models.CharField(  # 性别
+        "性别",
         max_length=10,
         choices=Gender.choices,
         null=True,
         blank=True,
     )
-    id_card = models.CharField(max_length=18, null=True, blank=True)  # 身份证号
-    phone = models.CharField(max_length=20, null=True, blank=True)  # 联系电话
+    id_card = models.CharField("身份证号", max_length=18, null=True, blank=True)
+    phone = models.CharField("联系电话", max_length=20, null=True, blank=True)
     organization = models.ForeignKey(
         Organization,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="users",
+        verbose_name="所属机构",
     )  # 所属机构
-    role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEDIATOR)  # 身份角色
-    is_active = models.BooleanField(default=True)  # 是否启用
-    created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
-    updated_at = models.DateTimeField(auto_now=True)  # 更新时间
+    role = models.CharField("角色", max_length=20, choices=Role.choices, default=Role.MEDIATOR)
+    is_active = models.BooleanField("是否启用", default=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     objects = UserManager()
 
@@ -120,6 +125,8 @@ class User(AbstractBaseUser):
 
     class Meta:
         db_table = "users_user"
+        verbose_name = "人员"
+        verbose_name_plural = verbose_name
 
     def __str__(self) -> str:  # pragma: no cover
         return f"{self.username}({self.name})"
@@ -162,20 +169,29 @@ class User(AbstractBaseUser):
 class TrainingRecord(models.Model):
     """培训记录表（users_training_record）。"""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="training_records")  # 用户ID
-    name = models.CharField(max_length=100)  # 培训名称
-    content = models.TextField(null=True, blank=True)  # 培训内容
-    training_time = models.DateField(null=True, blank=True)  # 培训时间
-    file_ids = models.CharField(  # 证书附件ID列表（common_attachment.id，逗号分隔）
-        max_length=500,
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="training_records",
+        verbose_name="人员",
+    )
+    name = models.CharField("培训名称", max_length=100)
+    content = models.TextField("培训内容", null=True, blank=True)
+    training_time = models.DateField("培训时间", null=True, blank=True)
+    file_ids = models.CharField(
+        "证书附件ID",
         blank=True,
         default="",
+        max_length=500,
+        help_text="common_attachment.id 列表，逗号分隔",
     )
-    created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
-    updated_at = models.DateTimeField(auto_now=True)  # 更新时间
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
         db_table = "users_training_record"
+        verbose_name = "培训记录"
+        verbose_name_plural = verbose_name
 
     def __str__(self) -> str:  # pragma: no cover
         return f"{self.user_id}:{self.name}"
@@ -188,19 +204,23 @@ class PerformanceScore(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name="performance_scores_received",
+        verbose_name="调解员",
     )  # 调解员
     scorer = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="performance_scores_given",
+        verbose_name="打分人",
     )  # 打分人
-    score = models.IntegerField()  # 分数（0-100）
-    period = models.CharField(max_length=20)  # 考核周期（如：2024-01）
-    comment = models.TextField(null=True, blank=True)  # 评语
-    created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
+    score = models.IntegerField("分数")  # 0-100
+    period = models.CharField("考核周期", max_length=20, help_text="格式：YYYY-MM")  # 如：2024-01
+    comment = models.TextField("评语", null=True, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
 
     class Meta:
         db_table = "users_performance_score"
+        verbose_name = "绩效打分"
+        verbose_name_plural = verbose_name
         constraints = [
             models.UniqueConstraint(
                 fields=["mediator", "period"], name="uniq_users_score_mediator_period"

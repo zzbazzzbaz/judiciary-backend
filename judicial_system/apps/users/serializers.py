@@ -13,7 +13,6 @@ from rest_framework import serializers
 from utils.validators import validate_id_card, validate_password_strength, validate_phone, validate_username
 
 from utils.attachment_utils import get_attachments_by_ids, parse_attachment_ids
-from utils.validators import validate_period
 
 from apps.common.models import Attachment
 
@@ -257,7 +256,6 @@ class OrganizationListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "type",
             "parent_id",
             "parent_name",
             "is_active",
@@ -281,7 +279,6 @@ class OrganizationCreateUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "type",
             "parent_id",
             "description",
             "contact",
@@ -341,6 +338,8 @@ class TrainingRecordSerializer(serializers.ModelSerializer):
 class TrainingRecordCreateUpdateSerializer(serializers.ModelSerializer):
     """培训记录创建/更新。"""
 
+    file_ids = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = TrainingRecord
         fields = ["name", "content", "training_time", "file_ids"]
@@ -351,7 +350,12 @@ class TrainingRecordCreateUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_file_ids(self, value):
-        # 校验 file_ids 中的附件是否存在
+        # 兼容传 null 清空附件
+        if value is None:
+            return ""
+        if not isinstance(value, str):
+            raise serializers.ValidationError("file_ids 参数格式不正确")
+
         ids = parse_attachment_ids(value)
         if not ids:
             return value
@@ -367,6 +371,9 @@ class TrainingRecordCreateUpdateSerializer(serializers.ModelSerializer):
         user = self.context.get("user")
         if not user:
             raise serializers.ValidationError("缺少用户信息")
+        # file_ids 允许传 null，这里统一转空字符串，避免写入 None
+        if validated_data.get("file_ids") is None:
+            validated_data["file_ids"] = ""
         return TrainingRecord.objects.create(user=user, **validated_data)
 
 
@@ -398,16 +405,9 @@ class PerformanceScoreUpsertSerializer(serializers.Serializer):
 
     mediator_id = serializers.IntegerField(required=True)
     score = serializers.IntegerField(required=True)
-    period = serializers.CharField(required=True)
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_score(self, value):
         if value < 0 or value > 100:
             raise serializers.ValidationError("分数必须在 0-100 之间")
         return value
-
-    def validate_period(self, value):
-        if not validate_period(value):
-            raise serializers.ValidationError("周期格式不正确（YYYY-MM）")
-        return value
-

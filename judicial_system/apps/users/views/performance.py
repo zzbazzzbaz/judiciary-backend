@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.db.models import Avg, Count, Max, Min
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -30,12 +31,14 @@ class PerformanceScoreListCreateAPIView(APIView):
 
         mediator_id = serializer.validated_data["mediator_id"]
         score = serializer.validated_data["score"]
-        period = serializer.validated_data["period"]
         comment = serializer.validated_data.get("comment")
 
         mediator = User.objects.filter(id=mediator_id, role=User.Role.MEDIATOR).first()
         if not mediator:
             return error_response("调解员不存在", code=404, http_status=404)
+
+        # 新增绩效仅允许本月，考核周期由服务端生成，前端不可手动填写
+        period = timezone.now().strftime("%Y-%m")
 
         # 同一调解员同一周期仅一条记录：存在则更新，不存在则创建
         obj, _created = PerformanceScore.objects.update_or_create(
@@ -143,4 +146,3 @@ class PerformanceUserDetailAPIView(APIView):
                 "records": records,
             }
         )
-
