@@ -16,7 +16,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.utils import timezone
 
-from .models import Organization, PerformanceScore, TrainingRecord, User
+from .models import Organization, PerformanceScore, TrainingRecord, User, UserAttachment
 
 
 class UserCreationForm(forms.ModelForm):
@@ -146,6 +146,25 @@ class UserAdmin(BaseUserAdmin):
         return queryset, use_distinct
 
 
+@admin.register(UserAttachment)
+class UserAttachmentAdmin(admin.ModelAdmin):
+    """用户附件管理。"""
+
+    list_display = ("id", "user", "created_at")
+    search_fields = ("user__username", "user__name")
+    readonly_fields = ("user", "created_at")
+
+    def get_fields(self, request, obj=None):
+        if obj is None:  # 新增时不显示 user
+            return ("file",)
+        return ("user", "file", "created_at")
+
+    def save_model(self, request, obj, form, change):
+        if not change:  # 新增时自动设置为当前用户
+            obj.user = request.user
+        super().save_model(request, obj, form, change)
+
+
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     """机构管理。"""
@@ -164,6 +183,7 @@ class TrainingRecordAdmin(admin.ModelAdmin):
     search_fields = ("name", "user__name", "user__username", "user__phone")
     list_filter = ("training_time",)
     raw_id_fields = ("user",)
+    autocomplete_fields = ("files", "user")
     ordering = ("-training_time", "-created_at")
 
 

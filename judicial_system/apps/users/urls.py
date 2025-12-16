@@ -10,7 +10,6 @@ from .views.performance import (
     PerformanceStatisticsAPIView,
     PerformanceUserDetailAPIView,
 )
-from .views.training import TrainingRecordDetailAPIView, UserTrainingRecordAPIView
 from .views.user import UserViewSet
 
 router = DefaultRouter()
@@ -24,9 +23,6 @@ urlpatterns = [
     path("auth/refresh/", TokenRefreshAPIView.as_view(), name="auth-refresh"),
     path("auth/password/change/", PasswordChangeAPIView.as_view(), name="auth-password-change"),
     path("auth/profile/", ProfileAPIView.as_view(), name="auth-profile"),
-    # 培训记录
-    path("users/<int:user_id>/trainings/", UserTrainingRecordAPIView.as_view(), name="user-trainings"),
-    path("trainings/<int:pk>/", TrainingRecordDetailAPIView.as_view(), name="training-detail"),
     # 绩效管理
     path(
         "performance/scores/",

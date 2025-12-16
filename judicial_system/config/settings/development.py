@@ -139,6 +139,15 @@ SIMPLEUI_CONFIG = {
                 {"name": "网格", "icon": "fas fa-border-all", "url": "grids/grid/"},
                 {"name": "任务", "icon": "fas fa-tasks", "url": "cases/task/"},
             ],
+        }, {
+            "name": "成员管理",
+            "icon": "fas fa-th-large",
+            "models": [
+                {"name": "成员", "icon": "fas fa-chart-bar", "url": "users/user"},
+                {"name": "培训记录", "icon": "fas fa-chart-bar", "url": "users/trainingrecord/"},
+                {"name": "机构", "icon": "fas fa-chart-bar", "url": "users/organization/"},
+                {"name": "绩效", "icon": "fas fa-chart-bar", "url": "users/performancescore/"},
+            ]
         }
     ],
 }

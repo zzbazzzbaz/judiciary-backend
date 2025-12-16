@@ -178,12 +178,11 @@ class TrainingRecord(models.Model):
     name = models.CharField("培训名称", max_length=100)
     content = models.TextField("培训内容", null=True, blank=True)
     training_time = models.DateField("培训时间", null=True, blank=True)
-    file_ids = models.CharField(
-        "证书附件ID",
+    files = models.ManyToManyField(
+        "UserAttachment",
         blank=True,
-        default="",
-        max_length=500,
-        help_text="common_attachment.id 列表，逗号分隔",
+        related_name="training_records",
+        verbose_name="证书附件",
     )
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
@@ -226,3 +225,16 @@ class PerformanceScore(models.Model):
                 fields=["mediator", "period"], name="uniq_users_score_mediator_period"
             )
         ]
+
+
+class UserAttachment(models.Model):
+    """用户附件表（users_attachment）。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="attachments", verbose_name="用户")
+    file = models.FileField("文件", max_length=255, upload_to="users/%Y/%m/")
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+
+    class Meta:
+        db_table = "users_attachment"
+        verbose_name = "用户附件"
+        verbose_name_plural = verbose_name

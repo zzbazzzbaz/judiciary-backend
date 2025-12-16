@@ -12,11 +12,7 @@ from rest_framework import serializers
 
 from utils.validators import validate_id_card, validate_password_strength, validate_phone, validate_username
 
-from utils.attachment_utils import get_attachments_by_ids, parse_attachment_ids
-
-from apps.common.models import Attachment
-
-from .models import Organization, PerformanceScore, TrainingRecord, User
+from .models import Organization, PerformanceScore, User
 
 
 class OrganizationSimpleSerializer(serializers.ModelSerializer):
@@ -315,66 +311,6 @@ class OrganizationCreateUpdateSerializer(serializers.ModelSerializer):
             cursor = cursor.parent
 
         return attrs
-
-
-class TrainingRecordSerializer(serializers.ModelSerializer):
-    """培训记录输出。"""
-
-    files = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TrainingRecord
-        fields = ["id", "name", "content", "training_time", "files", "created_at", "updated_at"]
-
-    def get_files(self, obj: TrainingRecord):
-        # 需求文档：返回附件详情（仅包含 id/file/original_name）
-        files = get_attachments_by_ids(obj.file_ids)
-        return [
-            {"id": f.get("id"), "file": f.get("file"), "original_name": f.get("original_name")}
-            for f in files
-        ]
-
-
-class TrainingRecordCreateUpdateSerializer(serializers.ModelSerializer):
-    """培训记录创建/更新。"""
-
-    file_ids = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-
-    class Meta:
-        model = TrainingRecord
-        fields = ["name", "content", "training_time", "file_ids"]
-
-    def validate_name(self, value):
-        if not value:
-            raise serializers.ValidationError("培训名称不能为空")
-        return value
-
-    def validate_file_ids(self, value):
-        # 兼容传 null 清空附件
-        if value is None:
-            return ""
-        if not isinstance(value, str):
-            raise serializers.ValidationError("file_ids 参数格式不正确")
-
-        ids = parse_attachment_ids(value)
-        if not ids:
-            return value
-
-        existing = set(Attachment.objects.filter(id__in=ids).values_list("id", flat=True))
-        missing = [i for i in ids if i not in existing]
-        if missing:
-            raise serializers.ValidationError(f"附件不存在: {','.join(map(str, missing))}")
-        return value
-
-    def create(self, validated_data):
-        # user 由视图通过 context 注入
-        user = self.context.get("user")
-        if not user:
-            raise serializers.ValidationError("缺少用户信息")
-        # file_ids 允许传 null，这里统一转空字符串，避免写入 None
-        if validated_data.get("file_ids") is None:
-            validated_data["file_ids"] = ""
-        return TrainingRecord.objects.create(user=user, **validated_data)
 
 
 class PerformanceScoreSerializer(serializers.ModelSerializer):
