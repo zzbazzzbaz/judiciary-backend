@@ -33,6 +33,13 @@
         <div class="absolute bottom-3 right-3 z-10 flex gap-2">
           <button
             type="button"
+            id="grid-stat-btn-toggle-borders"
+            class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white/90 hover:bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {% trans "隐藏边框" %}
+          </button>
+          <button
+            type="button"
             id="grid-stat-btn-center"
             class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white/90 hover:bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -387,6 +394,34 @@
             map.setCenter(initialCenter);
           }
           map.setZoom(Math.max(minZoom, zoomLevel));
+        });
+      }
+
+      var bordersVisible = true;
+      var btnToggleBorders = document.getElementById("grid-stat-btn-toggle-borders");
+      if (btnToggleBorders) {
+        btnToggleBorders.addEventListener("click", function () {
+          bordersVisible = !bordersVisible;
+          btnToggleBorders.textContent = bordersVisible ? "{% trans '隐藏边框' %}" : "{% trans '显示边框' %}";
+
+          Object.keys(polygonsById).forEach(function (id) {
+            var poly = polygonsById[id];
+            if (poly && typeof poly.setMap === "function") {
+              poly.setMap(bordersVisible ? map : null);
+            }
+          });
+
+          Object.keys(markersById).forEach(function (id) {
+            var marker = markersById[id];
+            if (marker && typeof marker.setMap === "function") {
+              marker.setMap(bordersVisible ? map : null);
+            }
+          });
+
+          if (!bordersVisible) {
+            setSelected(null);
+            if (infoWin && typeof infoWin.close === "function") infoWin.close();
+          }
         });
       }
 
