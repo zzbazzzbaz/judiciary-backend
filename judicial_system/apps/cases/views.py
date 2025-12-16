@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -27,17 +26,20 @@ from .serializers import (
 )
 
 
-class TaskViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class TaskViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     """
     任务接口集合（符合需求文档路径）：
-    - /api/v1/tasks/
-    - /api/v1/tasks/{id}/
-    - /api/v1/tasks/{id}/process/
-    - /api/v1/tasks/{id}/complete/
-    - /api/v1/tasks/my-reports/
-    - /api/v1/tasks/my-tasks/
-    - /api/v1/tasks/my-history/
-    - /api/v1/tasks/my-tasks/{id}/
+    - POST /api/v1/tasks/
+    - GET /api/v1/tasks/
+    - GET /api/v1/tasks/{id}/
+    - POST /api/v1/tasks/{id}/process/
+    - POST /api/v1/tasks/{id}/complete/
+    - GET /api/v1/tasks/my-reports/
     """
 
     queryset = (
@@ -45,16 +47,19 @@ class TaskViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, viewsets.G
         .all()
         .order_by("-reported_at")
     )
+    lookup_value_regex = r"\d+"
     pagination_class = StandardPageNumberPagination
 
     def get_permissions(self):
         if self.action == "create":
             return [IsMediator()]
-        if self.action in {"process", "complete", "my_reports", "my_tasks", "my_history", "my_task_detail"}:
+        if self.action in {"process", "complete", "my_reports"}:
             return [IsMediator()]
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
+        if self.action == "list":
+            return TaskListSerializer
         if self.action == "create":
             return TaskCreateSerializer
         return TaskDetailSerializer
@@ -81,6 +86,40 @@ class TaskViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, viewsets.G
             return
 
         raise PermissionDenied("无权查看此任务")
+
+    def list(self, request, *args, **kwargs):
+        """任务列表（按角色返回可访问数据）。"""
+
+        qs = self.get_queryset()
+        user: User = request.user
+
+        if user.role == User.Role.ADMIN:
+            pass
+        elif user.role == User.Role.GRID_MANAGER:
+            qs = qs.filter(grid__current_manager=user)
+        elif user.role == User.Role.MEDIATOR:
+            qs = qs.filter(Q(reporter=user) | Q(assigned_mediator=user))
+        else:
+            raise PermissionDenied("无权查看任务列表")
+
+        params = request.query_params
+        search = params.get("search")
+        task_type = params.get("type")
+        status_ = params.get("status")
+        grid_id = params.get("grid_id")
+
+        if search:
+            qs = qs.filter(Q(code__icontains=search) | Q(party_name__icontains=search))
+        if task_type:
+            qs = qs.filter(type=task_type)
+        if status_:
+            qs = qs.filter(status=status_)
+        if grid_id and str(grid_id).isdigit():
+            qs = qs.filter(grid_id=int(grid_id))
+
+        page = self.paginate_queryset(qs)
+        serializer = TaskListSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = TaskCreateSerializer(data=request.data, context={"request": request})
@@ -217,68 +256,3 @@ class TaskViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, viewsets.G
         page = self.paginate_queryset(qs)
         serializer = TaskListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
-
-    @action(detail=False, methods=["get"], url_path="my-tasks")
-    def my_tasks(self, request):
-        """我的待办任务（调解员）。"""
-
-        qs = self.get_queryset().filter(assigned_mediator=request.user).order_by("-assigned_at", "-reported_at")
-        task_type = request.query_params.get("type")
-        status_ = request.query_params.get("status")
-
-        if task_type:
-            qs = qs.filter(type=task_type)
-        if status_:
-            qs = qs.filter(status=status_)
-        else:
-            qs = qs.filter(status__in=[Task.Status.ASSIGNED, Task.Status.PROCESSING])
-
-        page = self.paginate_queryset(qs)
-        serializer = TaskListSerializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
-
-    @action(detail=False, methods=["get"], url_path="my-history")
-    def my_history(self, request):
-        """我的历史任务（调解员）。"""
-
-        qs = (
-            self.get_queryset()
-            .filter(assigned_mediator=request.user, status=Task.Status.COMPLETED)
-            .order_by("-completed_at", "-reported_at")
-        )
-
-        task_type = request.query_params.get("type")
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
-        if task_type:
-            qs = qs.filter(type=task_type)
-
-        try:
-            if start_date:
-                start = datetime.strptime(start_date, "%Y-%m-%d").date()
-                qs = qs.filter(completed_at__date__gte=start)
-            if end_date:
-                end = datetime.strptime(end_date, "%Y-%m-%d").date()
-                qs = qs.filter(completed_at__date__lte=end)
-        except ValueError:
-            return error_response("日期格式不正确（YYYY-MM-DD）", http_status=400)
-
-        page = self.paginate_queryset(qs)
-        serializer = TaskListSerializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
-
-    @action(detail=False, methods=["get"], url_path=r"my-tasks/(?P<pk>[^/.]+)")
-    def my_task_detail(self, request, pk=None):
-        """调解员任务详情（/tasks/my-tasks/{id}/）。"""
-
-        if not pk or not str(pk).isdigit():
-            return error_response("任务不存在", code=404, http_status=404)
-        task = self.get_queryset().filter(id=int(pk)).first()
-        if not task:
-            return error_response("任务不存在", code=404, http_status=404)
-
-        # 调解员仅能查看自己上报的或被分配的任务
-        if task.reporter_id != request.user.id and task.assigned_mediator_id != request.user.id:
-            return error_response("无权查看此任务", code=403, http_status=403)
-
-        return success_response(data=TaskDetailSerializer(task).data)
