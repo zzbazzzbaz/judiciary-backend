@@ -136,3 +136,20 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "utils.exceptions.custom_exception_handler",
 }
+
+# SimpleUI 菜单配置
+SIMPLEUI_CONFIG = {
+    # 保留系统默认菜单，并追加自定义菜单
+    "system_keep": True,
+    "menus": [
+        {
+            "name": "网格管理",
+            "icon": "fas fa-th-large",
+            "models": [
+                {"name": "统计", "icon": "fas fa-chart-bar", "url": "grids/statistics/"},
+                {"name": "网格", "icon": "fas fa-border-all", "url": "grids/grid/"},
+                {"name": "任务", "icon": "fas fa-tasks", "url": "cases/task/"},
+            ],
+        }
+    ],
+}

@@ -46,7 +46,6 @@ class Article(models.Model):
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)  # 状态
     sort_order = models.IntegerField(default=0)  # 排序
-    view_count = models.IntegerField(default=0)  # 浏览次数
     publisher = models.ForeignKey(
         "users.User",
         null=True,
