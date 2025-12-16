@@ -24,3 +24,14 @@ class IsGridManager(BasePermission):
             and getattr(request.user, "role", None) in {"admin", "grid_manager"}
         )
 
+
+class IsMediator(BasePermission):
+    """调解员权限（role=mediator）。"""
+
+    def has_permission(self, request, view) -> bool:
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) == "mediator"
+        )
+
