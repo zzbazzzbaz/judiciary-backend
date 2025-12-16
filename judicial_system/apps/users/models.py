@@ -228,7 +228,7 @@ class PerformanceScore(models.Model):
 
 
 class UserAttachment(models.Model):
-    """用户附件表（users_attachment）。"""
+    """附件表（users_attachment）。"""
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="attachments", verbose_name="用户")
     file = models.FileField("文件", max_length=255, upload_to="users/%Y/%m/")
@@ -236,5 +236,5 @@ class UserAttachment(models.Model):
 
     class Meta:
         db_table = "users_attachment"
-        verbose_name = "用户附件"
+        verbose_name = "附件"
         verbose_name_plural = verbose_name

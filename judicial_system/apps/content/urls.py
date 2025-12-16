@@ -3,13 +3,13 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import ArticleViewSet, CategoryListAPIView
-
-router = DefaultRouter()
-router.register(r"articles", ArticleViewSet, basename="articles")
+# from .views import ArticleViewSet, CategoryListAPIView
+#
+# router = DefaultRouter()
+# router.register(r"articles", ArticleViewSet, basename="articles")
 
 urlpatterns = [
-    path("content/categories/", CategoryListAPIView.as_view(), name="content-categories"),
-    path("", include(router.urls)),
+    # path("content/categories/", CategoryListAPIView.as_view(), name="content-categories"),
+    # path("", include(router.urls)),
 ]
 
