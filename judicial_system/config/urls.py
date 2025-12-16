@@ -1,13 +1,16 @@
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import include, path
+
+# 自定义 Admin 站点
+from .admin_sites import admin_site, grid_manager_site
 
 # Admin 扩展（自定义菜单页面等）
 from . import admin_custom  # noqa: F401
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("admin/", admin_site.urls),  # 管理员后台
+    path("grid-admin/", grid_manager_site.urls),  # 网格负责人后台
     path("ckeditor/", include("ckeditor_uploader.urls")),
     path("api/v1/", include("apps.common.urls")),
     path("api/v1/", include("apps.users.urls")),

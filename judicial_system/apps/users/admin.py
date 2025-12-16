@@ -16,6 +16,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.utils import timezone
 
+from config.admin_sites import admin_site, grid_manager_site
 from .models import Organization, PerformanceScore, TrainingRecord, User, UserAttachment
 
 
@@ -79,7 +80,6 @@ class UserChangeForm(forms.ModelForm):
         return self.initial.get("password")
 
 
-@admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """人员管理（用户/人员）。"""
 
@@ -146,7 +146,6 @@ class UserAdmin(BaseUserAdmin):
         return queryset, use_distinct
 
 
-@admin.register(UserAttachment)
 class UserAttachmentAdmin(admin.ModelAdmin):
     """用户附件管理。"""
 
@@ -165,7 +164,6 @@ class UserAttachmentAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-@admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     """机构管理。"""
 
@@ -175,7 +173,6 @@ class OrganizationAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "id")
 
 
-@admin.register(TrainingRecord)
 class TrainingRecordAdmin(admin.ModelAdmin):
     """培训记录管理。"""
 
@@ -187,7 +184,6 @@ class TrainingRecordAdmin(admin.ModelAdmin):
     ordering = ("-training_time", "-created_at")
 
 
-@admin.register(PerformanceScore)
 class PerformanceScoreAdmin(admin.ModelAdmin):
     """绩效管理（网格负责人对调解员打分）。"""
 
@@ -234,3 +230,15 @@ class PerformanceScoreAdmin(admin.ModelAdmin):
             obj.period = timezone.now().strftime("%Y-%m")
 
         super().save_model(request, obj, form, change)
+
+
+# 注册到管理员后台（完整功能）
+admin_site.register(User, UserAdmin)
+admin_site.register(UserAttachment, UserAttachmentAdmin)
+admin_site.register(Organization, OrganizationAdmin)
+admin_site.register(TrainingRecord, TrainingRecordAdmin)
+admin_site.register(PerformanceScore, PerformanceScoreAdmin)
+
+# 注册到网格负责人后台（仅相关功能）
+grid_manager_site.register(User, UserAdmin)
+grid_manager_site.register(PerformanceScore, PerformanceScoreAdmin)

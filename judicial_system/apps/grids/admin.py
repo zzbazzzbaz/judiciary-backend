@@ -8,6 +8,7 @@ from django.db.models import Count
 from django.forms import Textarea
 
 from apps.users.models import User
+from config.admin_sites import admin_site, grid_manager_site
 
 from .models import Grid, MediatorAssignment
 
@@ -27,7 +28,6 @@ class MediatorAssignmentInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-@admin.register(Grid)
 class GridAdmin(admin.ModelAdmin):
     """网格管理（网格信息、边界、负责人、调解员分配）。"""
 
@@ -64,3 +64,10 @@ class GridAdmin(admin.ModelAdmin):
         if db_field.name == "current_manager":
             kwargs["queryset"] = User.objects.filter(role=User.Role.GRID_MANAGER, is_active=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+# 注册到管理员后台
+admin_site.register(Grid, GridAdmin)
+
+# 注册到网格负责人后台
+grid_manager_site.register(Grid, GridAdmin)

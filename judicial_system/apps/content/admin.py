@@ -2,16 +2,15 @@
 
 from django.contrib import admin
 
+from config.admin_sites import admin_site
 from .models import Activity, Article, Category, ContentAttachment, Document
 
 
-@admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "sort_order", "created_at")
     ordering = ("sort_order", "id")
 
 
-@admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -29,20 +28,25 @@ class ArticleAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
 
-@admin.register(ContentAttachment)
 class ContentAttachmentAdmin(admin.ModelAdmin):
     list_display = ("id", "file", "created_at")
     search_fields = ("file",)
 
 
-@admin.register(Activity)
 class ActivityAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "start_time", "registration_start", "registration_end", "created_at")
     search_fields = ("name",)
     filter_horizontal = ("participants",)
 
 
-@admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "file", "created_at")
     search_fields = ("name",)
+
+
+# 注册到管理员后台
+admin_site.register(Category, CategoryAdmin)
+admin_site.register(Article, ArticleAdmin)
+admin_site.register(ContentAttachment, ContentAttachmentAdmin)
+admin_site.register(Activity, ActivityAdmin)
+admin_site.register(Document, DocumentAdmin)

@@ -133,37 +133,21 @@ class User(AbstractBaseUser):
 
     @property
     def is_staff(self) -> bool:
-        """
-        Django Admin 需要 `is_staff` 字段/属性。
-
-        说明：系统以 role=admin 作为后台管理权限依据。
-        """
-
-        return self.role == self.Role.ADMIN
+        """Django admin 需要的 is_staff 属性"""
+        return True
 
     @property
     def is_superuser(self) -> bool:
-        """
-        与 Django/第三方 Admin 组件兼容的 `is_superuser` 字段/属性。
+        """Django admin 需要的 is_superuser 属性"""
+        return True
 
-        说明：系统以 role=admin 作为超级管理员标识。
-        """
+    def has_perm(self, perm, obj=None) -> bool:
+        """Django admin 需要的权限接口"""
+        return True
 
-        return self.role == self.Role.ADMIN
-
-    def has_perm(self, perm, obj=None) -> bool:  # pragma: no cover
-        """
-        与 Django Admin 兼容的权限接口。
-
-        说明：本项目暂不使用 Django 的细粒度权限系统，admin 视为拥有全部权限。
-        """
-
-        return self.role == self.Role.ADMIN
-
-    def has_module_perms(self, app_label) -> bool:  # pragma: no cover
-        """与 Django Admin 兼容的模块权限判断。"""
-
-        return self.role == self.Role.ADMIN
+    def has_module_perms(self, app_label) -> bool:
+        """Django admin 需要的模块权限接口"""
+        return True
 
 
 class TrainingRecord(models.Model):

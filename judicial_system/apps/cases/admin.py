@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.grids.models import Grid, MediatorAssignment
 from apps.users.models import User
+from config.admin_sites import admin_site, grid_manager_site
 from utils.code_generator import generate_task_code
 
 from .models import Task
@@ -41,7 +42,6 @@ class TaskAdminForm(forms.ModelForm):
         return cleaned_data
 
 
-@admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     """任务管理（纠纷/法律援助、分派与调解结果）。"""
 
@@ -152,3 +152,10 @@ class TaskAdmin(admin.ModelAdmin):
 
         if last_error:
             raise last_error
+
+
+# 注册到管理员后台
+admin_site.register(Task, TaskAdmin)
+
+# 注册到网格负责人后台
+grid_manager_site.register(Task, TaskAdmin)
