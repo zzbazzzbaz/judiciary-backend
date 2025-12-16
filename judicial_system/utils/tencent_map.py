@@ -45,4 +45,3 @@ def reverse_geocode(lat: float, lng: float) -> dict[str, Any] | None:
         }
 
     return None
-
