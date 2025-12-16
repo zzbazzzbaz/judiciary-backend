@@ -5,6 +5,9 @@ Users 模块模型
 - 用户与人员模块：用户认证、人员管理、机构管理、绩效管理。
 """
 
+from __future__ import annotations
+
+from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
 
@@ -35,11 +38,44 @@ class Organization(models.Model):
         return self.name
 
 
-class User(models.Model):
+class UserManager(BaseUserManager):
+    """用户管理器。
+
+    说明：
+    - 该项目使用自定义用户模型（AUTH_USER_MODEL = 'users.User'）。
+    - 通过 `set_password()` 统一加密存储密码。
+    """
+
+    def create_user(self, username: str, password: str | None = None, **extra_fields):
+        if not username:
+            raise ValueError("username 不能为空")
+
+        user = self.model(username=username, **extra_fields)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username: str, password: str | None = None, **extra_fields):
+        """
+        创建超级用户（用于 Django 管理后台）。
+
+        说明：本系统以 role=admin 作为管理员身份标识。
+        """
+
+        extra_fields.setdefault("role", User.Role.ADMIN)
+        extra_fields.setdefault("is_active", True)
+        return self.create_user(username=username, password=password, **extra_fields)
+
+
+class User(AbstractBaseUser):
     """用户/人员表（users_user）。
 
 注意：
-- 当前为业务用户表，未接入 Django 内置认证体系（AUTH_USER_MODEL 未替换）。
+    - 继承 AbstractBaseUser 以接入 Django/DRF 认证体系（JWT）。
+    - 本项目使用 `role` 字段做业务权限控制（admin/grid_manager/mediator）。
 """
 
     class Gender(models.TextChoices):
@@ -56,7 +92,6 @@ class User(models.Model):
         MEDIATOR = "mediator", "Mediator"
 
     username = models.CharField(max_length=50, unique=True)  # 用户名（登录账号，唯一）
-    password = models.CharField(max_length=128)  # 密码（加密存储）
     name = models.CharField(max_length=50)  # 姓名
     gender = models.CharField(  # 性别
         max_length=10,
@@ -75,15 +110,43 @@ class User(models.Model):
     )  # 所属机构
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEDIATOR)  # 身份角色
     is_active = models.BooleanField(default=True)  # 是否启用
-    last_login = models.DateTimeField(null=True, blank=True)  # 最后登录时间
     created_at = models.DateTimeField(auto_now_add=True)  # 创建时间
     updated_at = models.DateTimeField(auto_now=True)  # 更新时间
+
+    objects = UserManager()
+
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["name"]
 
     class Meta:
         db_table = "users_user"
 
     def __str__(self) -> str:  # pragma: no cover
         return f"{self.username}({self.name})"
+
+    @property
+    def is_staff(self) -> bool:
+        """
+        Django Admin 需要 `is_staff` 字段/属性。
+
+        说明：系统以 role=admin 作为后台管理权限依据。
+        """
+
+        return self.role == self.Role.ADMIN
+
+    def has_perm(self, perm, obj=None) -> bool:  # pragma: no cover
+        """
+        与 Django Admin 兼容的权限接口。
+
+        说明：本项目暂不使用 Django 的细粒度权限系统，admin 视为拥有全部权限。
+        """
+
+        return self.role == self.Role.ADMIN
+
+    def has_module_perms(self, app_label) -> bool:  # pragma: no cover
+        """与 Django Admin 兼容的模块权限判断。"""
+
+        return self.role == self.Role.ADMIN
 
 
 class TrainingRecord(models.Model):
