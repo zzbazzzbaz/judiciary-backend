@@ -14,41 +14,43 @@ class Task(models.Model):
     class Type(models.TextChoices):
         """任务类型（dispute/legal_aid）。"""
 
-        DISPUTE = "dispute", "Dispute"
-        LEGAL_AID = "legal_aid", "Legal Aid"
+        DISPUTE = "dispute", "纠纷"
+        LEGAL_AID = "legal_aid", "法律援助"
 
     class Status(models.TextChoices):
         """状态（reported/assigned/processing/completed）。"""
 
-        REPORTED = "reported", "Reported"
-        ASSIGNED = "assigned", "Assigned"
-        PROCESSING = "processing", "Processing"
-        COMPLETED = "completed", "Completed"
+        REPORTED = "reported", "已上报"
+        ASSIGNED = "assigned", "已分配"
+        PROCESSING = "processing", "进行中"
+        COMPLETED = "completed", "已完成"
 
     class HandleMethod(models.TextChoices):
         """处理方式（onsite/online）。"""
 
-        ONSITE = "onsite", "Onsite"
-        ONLINE = "online", "Online"
+        ONSITE = "onsite", "到达现场"
+        ONLINE = "online", "线上沟通"
 
     class Result(models.TextChoices):
         """调解结果（success/failure/partial）。"""
 
-        SUCCESS = "success", "Success"
-        FAILURE = "failure", "Failure"
-        PARTIAL = "partial", "Partial"
+        SUCCESS = "success", "成功"
+        FAILURE = "failure", "失败"
+        PARTIAL = "partial", "部分成功"
 
     # 基本信息
-    code = models.CharField(max_length=30, unique=True)  # 任务编号（唯一，自动生成）
-    type = models.CharField(max_length=20, choices=Type.choices)  # 任务类型
-    status = models.CharField(  # 状态
+    code = models.CharField("任务编号", max_length=30, unique=True)
+    type = models.CharField("任务类型", max_length=20, choices=Type.choices)
+    status = models.CharField(
+        "状态",
         max_length=20,
         choices=Status.choices,
         default=Status.REPORTED,
     )
 
-    description = models.TextField()  # 任务描述
-    amount = models.DecimalField(  # 涉及金额
+    description = models.TextField("任务描述")
+    amount = models.DecimalField(
+        "涉及金额",
         max_digits=12,
         decimal_places=2,
         null=True,
@@ -60,39 +62,45 @@ class Task(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="tasks",
-    )  # 所属网格
+        verbose_name="所属网格",
+    )
 
     # 当事人信息
-    party_name = models.CharField(max_length=50)  # 当事人姓名
-    party_phone = models.CharField(max_length=20, null=True, blank=True)  # 当事人电话
-    party_address = models.CharField(max_length=255, null=True, blank=True)  # 当事人住址
+    party_name = models.CharField("当事人姓名", max_length=50)
+    party_phone = models.CharField("当事人电话", max_length=20, null=True, blank=True)
+    party_address = models.CharField("当事人住址", max_length=255, null=True, blank=True)
 
     # 上报阶段
     reporter = models.ForeignKey(
         "users.User",
         on_delete=models.PROTECT,
         related_name="reported_tasks",
-    )  # 上报人
-    reported_at = models.DateTimeField(auto_now_add=True)  # 上报时间
-    report_lng = models.DecimalField(  # 上报经度
+        verbose_name="上报人",
+    )
+    reported_at = models.DateTimeField("上报时间", auto_now_add=True)
+    report_lng = models.DecimalField(
+        "上报经度",
         max_digits=10,
         decimal_places=7,
         null=True,
         blank=True,
     )
-    report_lat = models.DecimalField(  # 上报纬度
+    report_lat = models.DecimalField(
+        "上报纬度",
         max_digits=10,
         decimal_places=7,
         null=True,
         blank=True,
     )
-    report_address = models.CharField(max_length=255, null=True, blank=True)  # 上报地址
-    report_image_ids = models.CharField(  # 上报图片ID列表（common_attachment.id，逗号分隔）
+    report_address = models.CharField("上报地址", max_length=255, null=True, blank=True)
+    report_image_ids = models.CharField(
+        "上报图片ID",
         max_length=500,
         blank=True,
         default="",
     )
-    report_file_ids = models.CharField(  # 上报文件ID列表（common_attachment.id，逗号分隔）
+    report_file_ids = models.CharField(
+        "上报文件ID",
         max_length=500,
         blank=True,
         default="",
@@ -105,62 +113,72 @@ class Task(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="assigned_tasks",
-    )  # 分配人
+        verbose_name="分配人",
+    )
     assigned_mediator = models.ForeignKey(
         "users.User",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="tasks_to_handle",
-    )  # 被分配调解员
-    assigned_at = models.DateTimeField(null=True, blank=True)  # 分配时间
+        verbose_name="被分配调解员",
+    )
+    assigned_at = models.DateTimeField("分配时间", null=True, blank=True)
 
     # 进行中阶段
-    process_submitted_at = models.DateTimeField(null=True, blank=True)
-    participants = models.CharField(max_length=500, null=True, blank=True)  # 参与人员列表
+    process_submitted_at = models.DateTimeField("进行中提交时间", null=True, blank=True)
+    participants = models.CharField("参与人员", max_length=500, null=True, blank=True)
     handle_method = models.CharField(
+        "处理方式",
         max_length=20,
         choices=HandleMethod.choices,
         null=True,
         blank=True,
     )
-    expected_plan = models.TextField(null=True, blank=True)  # 预计调解方案
+    expected_plan = models.TextField("预计调解方案", null=True, blank=True)
 
     # 已完成阶段
-    result = models.CharField(max_length=20, choices=Result.choices, null=True, blank=True)
-    result_detail = models.TextField(null=True, blank=True)  # 调解结果详情
-    process_description = models.TextField(null=True, blank=True)  # 调解过程描述
-    completed_at = models.DateTimeField(null=True, blank=True)  # 完成时间
-    complete_lng = models.DecimalField(  # 完成经度
+    result = models.CharField("调解结果", max_length=20, choices=Result.choices, null=True, blank=True)
+    result_detail = models.TextField("结果详情", null=True, blank=True)
+    process_description = models.TextField("调解过程描述", null=True, blank=True)
+    completed_at = models.DateTimeField("完成时间", null=True, blank=True)
+    complete_lng = models.DecimalField(
+        "完成经度",
         max_digits=10,
         decimal_places=7,
         null=True,
         blank=True,
     )
-    complete_lat = models.DecimalField(  # 完成纬度
+    complete_lat = models.DecimalField(
+        "完成纬度",
         max_digits=10,
         decimal_places=7,
         null=True,
         blank=True,
     )
-    complete_address = models.CharField(max_length=255, null=True, blank=True)  # 完成地址
-    complete_image_ids = models.CharField(  # 完成图片ID列表（common_attachment.id，逗号分隔）
+    complete_address = models.CharField("完成地址", max_length=255, null=True, blank=True)
+    complete_image_ids = models.CharField(
+        "完成图片ID",
         max_length=500,
         blank=True,
         default="",
     )
-    complete_file_ids = models.CharField(  # 完成文件ID列表（common_attachment.id，逗号分隔）
+    complete_file_ids = models.CharField(
+        "完成文件ID",
         max_length=500,
         blank=True,
         default="",
     )
 
     # 时间戳
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
 
     class Meta:
         db_table = "cases_task"
+        verbose_name = "任务"
+        verbose_name_plural = verbose_name
+        ordering = ["-reported_at", "-id"]
 
     def __str__(self) -> str:  # pragma: no cover
         return self.code
