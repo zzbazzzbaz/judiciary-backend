@@ -21,19 +21,14 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "corsheaders",
+    "ckeditor",
     "apps.common.apps.CommonConfig",
     "apps.users.apps.UsersConfig",
     "apps.grids.apps.GridsConfig",
     "apps.cases.apps.CasesConfig",
     "apps.content.apps.ContentConfig",
+    "apps.mytests.apps.MytestsConfig",
 ]
-
-try:
-    import ckeditor  # noqa: F401
-except ModuleNotFoundError:
-    pass
-else:
-    INSTALLED_APPS.append("ckeditor")
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
