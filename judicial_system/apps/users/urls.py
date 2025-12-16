@@ -1,19 +1,13 @@
 """Users 子应用路由。"""
 
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 
 from .views.auth import LoginAPIView, LogoutAPIView, PasswordChangeAPIView, ProfileAPIView, TokenRefreshAPIView
 from .views.organization import OrganizationViewSet
-from .views.performance import (
-    PerformanceScoreListCreateAPIView,
-    PerformanceStatisticsAPIView,
-    PerformanceUserDetailAPIView,
-)
-from .views.user import UserViewSet
+from .views.performance import PerformanceUserDetailAPIView
 
-router = DefaultRouter()
-router.register(r"users", UserViewSet, basename="users")
+router = SimpleRouter()
 router.register(r"organizations", OrganizationViewSet, basename="organizations")
 
 urlpatterns = [
@@ -23,19 +17,9 @@ urlpatterns = [
     path("auth/refresh/", TokenRefreshAPIView.as_view(), name="auth-refresh"),
     path("auth/password/change/", PasswordChangeAPIView.as_view(), name="auth-password-change"),
     path("auth/profile/", ProfileAPIView.as_view(), name="auth-profile"),
-    # 绩效管理
+    # 获取当前用户绩效
     path(
-        "performance/scores/",
-        PerformanceScoreListCreateAPIView.as_view(),
-        name="performance-scores",
-    ),
-    path(
-        "performance/statistics/",
-        PerformanceStatisticsAPIView.as_view(),
-        name="performance-statistics",
-    ),
-    path(
-        "performance/user/<int:user_id>/",
+        "performance/my/",
         PerformanceUserDetailAPIView.as_view(),
         name="performance-user-detail",
     ),

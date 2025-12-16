@@ -3,7 +3,6 @@ Common 子应用 API 视图
 
 接口：
 - POST /api/v1/common/upload/            通用文件上传
-- GET  /api/v1/common/reverse-geocode/   逆地址解析（腾讯地图）
 """
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ from utils.file_utils import (
     validate_file_size,
 )
 from utils.responses import error_response, success_response
-from utils.tencent_map import reverse_geocode
 
 from .models import Attachment
 from .serializers import AttachmentSerializer
@@ -73,38 +71,3 @@ class UploadView(APIView):
             data=AttachmentSerializer(attachment, context={"request": request}).data,
             message="上传成功",
         )
-
-
-class ReverseGeocodeView(APIView):
-    """逆地址解析（坐标转地址）。"""
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        lat = request.query_params.get("lat")
-        lng = request.query_params.get("lng")
-
-        if lat is None or lng is None:
-            return error_response("缺少必要参数 lat 或 lng", http_status=400)
-
-        try:
-            lat_f = float(lat)
-            lng_f = float(lng)
-        except (TypeError, ValueError):
-            return error_response("lat 或 lng 参数格式不正确", http_status=400)
-
-        # 需求文档约束：中国境内坐标范围校验
-        if not (3.86 <= lat_f <= 53.55) or not (73.66 <= lng_f <= 135.05):
-            return error_response("坐标超出有效范围", http_status=400)
-
-        try:
-            data = reverse_geocode(lat=lat_f, lng=lng_f)
-        except Exception:
-            # 外部服务调用失败时统一返回 500，避免泄漏异常细节
-            return error_response("腾讯地图 API 调用失败", http_status=500)
-
-        if not data:
-            return error_response("腾讯地图 API 调用失败", http_status=500)
-
-        return success_response(data=data, message="success")
-

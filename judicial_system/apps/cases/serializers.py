@@ -209,35 +209,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return Task.objects.create(**validated_data)
 
 
-class TaskUpdateSerializer(serializers.ModelSerializer):
-    """更新任务（管理员/网格负责人）。"""
-
-    grid_id = serializers.PrimaryKeyRelatedField(
-        source="grid",
-        queryset=Grid.objects.all(),
-        required=False,
-        allow_null=True,
-        write_only=True,
-    )
-
-    class Meta:
-        model = Task
-        fields = [
-            "description",
-            "party_name",
-            "party_phone",
-            "party_address",
-            "amount",
-            "grid_id",
-        ]
-
-
-class TaskAssignSerializer(serializers.Serializer):
-    """分派调解员。"""
-
-    mediator_id = serializers.IntegerField(required=True)
-
-
 class TaskProcessSerializer(serializers.Serializer):
     """提交进行中信息。"""
 
@@ -263,4 +234,3 @@ class TaskCompleteSerializer(serializers.Serializer):
 
     def validate_complete_file_ids(self, value):
         return _validate_attachment_ids_exist(value or "")
-

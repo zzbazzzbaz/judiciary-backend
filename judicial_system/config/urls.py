@@ -12,11 +12,9 @@ urlpatterns = [
     path("admin/", admin_site.urls),  # 管理员后台
     path("grid-admin/", grid_manager_site.urls),  # 网格负责人后台
     path("ckeditor/", include("ckeditor_uploader.urls")),
-    path("api/v1/", include("apps.common.urls")),
     path("api/v1/", include("apps.users.urls")),
-    path("api/v1/", include("apps.grids.urls")),
     path("api/v1/", include("apps.cases.urls")),
-    path("api/v1/", include("apps.content.urls")),
+    path("api/v1/", include("apps.common.urls")),
 ]
 
 if settings.DEBUG:
