@@ -98,7 +98,7 @@ class TaskViewSet(
         elif user.role == User.Role.GRID_MANAGER:
             qs = qs.filter(grid__current_manager=user)
         elif user.role == User.Role.MEDIATOR:
-            qs = qs.filter(Q(reporter=user) | Q(assigned_mediator=user))
+            qs = qs.filter(assigned_mediator=user)
         else:
             raise PermissionDenied("无权查看任务列表")
 
@@ -106,7 +106,6 @@ class TaskViewSet(
         search = params.get("search")
         task_type = params.get("type")
         status_ = params.get("status")
-        grid_id = params.get("grid_id")
 
         if search:
             qs = qs.filter(Q(code__icontains=search) | Q(party_name__icontains=search))
@@ -114,8 +113,6 @@ class TaskViewSet(
             qs = qs.filter(type=task_type)
         if status_:
             qs = qs.filter(status=status_)
-        if grid_id and str(grid_id).isdigit():
-            qs = qs.filter(grid_id=int(grid_id))
 
         page = self.paginate_queryset(qs)
         serializer = TaskListSerializer(page, many=True)
@@ -246,8 +243,15 @@ class TaskViewSet(
         """我上报的任务（调解员）。"""
 
         qs = self.get_queryset().filter(reporter=request.user).order_by("-reported_at")
+
+        # 获取查询参数
+        search = request.query_params.get("search")
         task_type = request.query_params.get("type")
         status_ = request.query_params.get("status")
+
+        # 关键词搜索：按任务编号或当事人姓名模糊匹配
+        if search:
+            qs = qs.filter(Q(code__icontains=search) | Q(party_name__icontains=search))
         if task_type:
             qs = qs.filter(type=task_type)
         if status_:

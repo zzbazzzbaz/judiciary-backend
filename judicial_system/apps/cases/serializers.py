@@ -37,7 +37,7 @@ class GridSimpleSerializer(serializers.ModelSerializer):
 
 
 class TaskListSerializer(serializers.ModelSerializer):
-    """任务列表项（管理端/网格端）。"""
+    """任务列表项"""
 
     grid_name = serializers.CharField(source="grid.name", read_only=True)
     reporter_name = serializers.CharField(source="reporter.name", read_only=True)
