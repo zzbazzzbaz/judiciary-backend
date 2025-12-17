@@ -26,7 +26,8 @@ class ArticleAdmin(admin.ModelAdmin):
     search_fields = ("title",)
     list_filter = ("status", "category")
     autocomplete_fields = ("publisher", 'files')
-    ordering = ("-created_at",)
+    list_editable = ("status","sort_order")
+    ordering = ("sort_order","-created_at",)
 
 
 class ContentAttachmentAdmin(admin.ModelAdmin):

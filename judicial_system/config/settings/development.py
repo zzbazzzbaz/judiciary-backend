@@ -28,7 +28,6 @@ INSTALLED_APPS = [
     "apps.grids.apps.GridsConfig",
     "apps.cases.apps.CasesConfig",
     "apps.content.apps.ContentConfig",
-    "apps.mytests.apps.MytestsConfig",
 ]
 
 MIDDLEWARE = [
@@ -140,4 +139,3 @@ REST_FRAMEWORK = {
 
 # 忽略 CKEditor 安全警告
 SILENCED_SYSTEM_CHECKS = ["ckeditor.W001"]
-

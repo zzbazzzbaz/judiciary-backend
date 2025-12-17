@@ -171,6 +171,7 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "parent", "sort_order", "is_active", "created_at")
     search_fields = ("name",)
     list_filter = ("is_active",)
+    list_editable = ("sort_order",)
     ordering = ("sort_order", "id")
 
 

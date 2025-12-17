@@ -37,7 +37,7 @@ class DynamicSimpleUIMiddleware:
         # 管理员后台使用完整菜单（恢复默认配置）
         elif request.path.startswith('/admin/'):
             settings.SIMPLEUI_CONFIG = {
-                "system_keep": True,
+                "system_keep": False,
                 "menus": [
                     {
                         "name": "网格管理",
