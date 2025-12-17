@@ -28,6 +28,7 @@ class ArticleViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
     - GET /api/v1/articles/{id}/
     """
 
+    permission_classes = [AllowAny]
     lookup_value_regex = r"\d+"
 
     def get_queryset(self):
@@ -152,11 +153,9 @@ class CategoryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     queryset = Category.objects.all().order_by("sort_order", "id")
     serializer_class = CategorySerializer
+    permission_classes = [AllowAny]
     pagination_class = None
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
-        search = request.query_params.get("search")
-        if search:
-            qs = qs.filter(name__icontains=search)
         return success_response(data=self.get_serializer(qs, many=True).data)
