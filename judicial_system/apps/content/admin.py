@@ -25,7 +25,7 @@ class ArticleAdmin(admin.ModelAdmin):
     )
     search_fields = ("title",)
     list_filter = ("status", "category")
-    autocomplete_fields = ("publisher",'files')
+    autocomplete_fields = ("publisher", 'files')
     ordering = ("-created_at",)
 
 
@@ -38,6 +38,7 @@ class ActivityAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "start_time", "registration_start", "registration_end", "created_at")
     search_fields = ("name",)
     filter_horizontal = ("participants",)
+    autocomplete_fields = ('files',)
 
 
 class DocumentAdmin(admin.ModelAdmin):

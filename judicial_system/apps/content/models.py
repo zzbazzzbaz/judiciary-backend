@@ -21,8 +21,7 @@ class Category(models.Model):
         verbose_name = "文章分类"
         verbose_name_plural = verbose_name
 
-    def __str__(self) -> str:  # pragma: no cover
-        return self.name
+    def __str__(self) -> str: return self.name
 
 
 class Article(models.Model):
@@ -64,8 +63,29 @@ class Article(models.Model):
         verbose_name = "文章"
         verbose_name_plural = verbose_name
 
-    def __str__(self) -> str:  # pragma: no cover
-        return self.title
+    def __str__(self) -> str: return self.title
+
+
+class Activity(models.Model):
+    """活动表（content_activity）。"""
+
+    name = models.CharField("活动名称", max_length=200)
+    start_time = models.DateTimeField("开始时间")
+    registration_start = models.DateTimeField("报名开始时间")
+    registration_end = models.DateTimeField("报名结束时间")
+    content = RichTextField("活动内容", null=True, blank=True)
+    files = models.ManyToManyField(
+        "ContentAttachment",
+        blank=True,
+        verbose_name="活动附件",
+    )
+    participants = models.ManyToManyField("users.User", blank=True, related_name="activities", verbose_name="报名列表")
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+
+    class Meta:
+        db_table = "content_activity"
+        verbose_name = "活动"
+        verbose_name_plural = verbose_name
 
 
 class ContentAttachment(models.Model):
@@ -77,22 +97,7 @@ class ContentAttachment(models.Model):
         verbose_name = "附件"
         verbose_name_plural = verbose_name
 
-
-class Activity(models.Model):
-    """活动表（content_activity）。"""
-
-    name = models.CharField("活动名称", max_length=200)
-    start_time = models.DateTimeField("开始时间")
-    registration_start = models.DateTimeField("报名开始时间")
-    registration_end = models.DateTimeField("报名结束时间")
-    content = RichTextField("活动内容", null=True, blank=True)
-    participants = models.ManyToManyField("users.User", blank=True, related_name="activities", verbose_name="报名列表")
-    created_at = models.DateTimeField("创建时间", auto_now_add=True)
-
-    class Meta:
-        db_table = "content_activity"
-        verbose_name = "活动"
-        verbose_name_plural = verbose_name
+    def __str__(self) -> str: return self.file.name.split("/")[-1]
 
 
 ####################################################################################################
