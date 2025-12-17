@@ -95,7 +95,7 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         ("账号信息", {"fields": ("username", "password")}),
-        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization","grid", "role")}),
+        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization", "role")}),
         ("状态", {"fields": ("is_active",)}),
         ("时间", {"fields": ("last_login", "created_at", "updated_at")}),
     )
@@ -110,7 +110,6 @@ class UserAdmin(BaseUserAdmin):
                     "name",
                     "role",
                     "organization",
-                    "grid",
                     "is_active",
                     "gender",
                     "id_card",
@@ -124,6 +123,47 @@ class UserAdmin(BaseUserAdmin):
 
     # 项目暂不使用 Django 权限/分组体系，这里置空避免 admin 尝试渲染相关字段
     filter_horizontal = ()
+
+    def get_queryset(self, request):
+        """
+        根据当前用户角色过滤用户列表。
+
+        说明：
+        - admin 角色：返回所有用户
+        - grid_manager 角色：返回其管理的网格中分配的调解员
+        """
+        queryset = super().get_queryset(request)
+
+        # admin 角色返回所有记录
+        if hasattr(request.user, 'role') and request.user.role == User.Role.ADMIN:
+            return queryset
+
+        # grid_manager 角色返回其管理网格中的调解员
+        if hasattr(request.user, 'role') and request.user.role == User.Role.GRID_MANAGER:
+            from apps.grids.models import Grid
+            # 获取该 grid_manager 管理的网格
+            managed_grids = Grid.objects.filter(current_manager=request.user)
+            # 返回这些网格中分配的调解员
+            return queryset.filter(grid_assignments__grid__in=managed_grids).distinct()
+
+        # 其他角色返回空查询集
+        return queryset.none()
+
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        """
+        限制 role 字段的可选项：只有 admin 角色的用户可以选择 admin 和 grid_manager。
+
+        说明：
+        - admin 角色：可以选择所有角色
+        - grid_manager 角色：只能选择 mediator
+        - 其他角色：只能选择 mediator
+        """
+        if db_field.name == "role":
+            # grid_manager 角色只能选择 mediator
+            if hasattr(request.user, 'role') and request.user.role == User.Role.GRID_MANAGER:
+                kwargs["choices"] = [(User.Role.MEDIATOR, "调解员")]
+
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
 
     def get_search_results(self, request, queryset, search_term):
         """
