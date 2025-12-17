@@ -138,3 +138,6 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "utils.exceptions.custom_exception_handler",
 }
 
+# 忽略 CKEditor 安全警告
+SILENCED_SYSTEM_CHECKS = ["ckeditor.W001"]
+

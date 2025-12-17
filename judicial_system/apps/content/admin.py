@@ -9,6 +9,7 @@ from .models import Activity, Article, Category, ContentAttachment, Document
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "sort_order", "created_at")
     ordering = ("sort_order", "id")
+    list_editable = ("sort_order",)
 
 
 class ArticleAdmin(admin.ModelAdmin):
@@ -24,7 +25,7 @@ class ArticleAdmin(admin.ModelAdmin):
     )
     search_fields = ("title",)
     list_filter = ("status", "category")
-    raw_id_fields = ("publisher",)
+    autocomplete_fields = ("publisher",'files')
     ordering = ("-created_at",)
 
 

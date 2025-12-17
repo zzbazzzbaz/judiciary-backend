@@ -12,7 +12,7 @@ from ckeditor.fields import RichTextField
 class Category(models.Model):
     """分类表（content_category）。"""
 
-    name = models.CharField("分类名称", max_length=50,unique=True)
+    name = models.CharField("分类名称", max_length=50, unique=True)
     sort_order = models.IntegerField("排序", default=0)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
 
@@ -31,15 +31,15 @@ class Article(models.Model):
     class Status(models.TextChoices):
         """状态（draft/published/archived）。"""
 
-        DRAFT = "draft", "Draft"
-        PUBLISHED = "published", "Published"
-        ARCHIVED = "archived", "Archived"
+        DRAFT = "draft", "草稿"
+        PUBLISHED = "published", "已发布"
+        ARCHIVED = "archived", "已归档"
 
     title = models.CharField("标题", max_length=200)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="articles", verbose_name="分类")
     content = RichTextField("正文内容", null=True, blank=True)
-    cover_image = models.CharField("封面图片", max_length=255, null=True, blank=True)
-    video = models.CharField("视频", max_length=255, null=True, blank=True)
+    cover_image = models.ImageField("封面图片", upload_to="articles/covers/%Y/%m/", null=True, blank=True)
+    video = models.FileField("视频", upload_to="articles/videos/%Y/%m/", null=True, blank=True)
     files = models.ManyToManyField(
         "ContentAttachment",
         blank=True,
@@ -67,8 +67,8 @@ class Article(models.Model):
     def __str__(self) -> str:  # pragma: no cover
         return self.title
 
-class ContentAttachment(models.Model):
 
+class ContentAttachment(models.Model):
     file = models.FileField("文件", max_length=255, upload_to="users/%Y/%m/")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
 
@@ -94,6 +94,8 @@ class Activity(models.Model):
         verbose_name = "活动"
         verbose_name_plural = verbose_name
 
+
+####################################################################################################
 
 class Document(models.Model):
     """文档资料表（content_document）。"""
