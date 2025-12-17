@@ -3,6 +3,7 @@ Common 子应用 API 视图
 
 接口：
 - POST /api/v1/common/upload/            通用文件上传
+- GET  /api/v1/common/map-config/        地图配置（当前启用）
 """
 
 from __future__ import annotations
@@ -21,8 +22,8 @@ from utils.file_utils import (
 )
 from utils.responses import error_response, success_response
 
-from .models import Attachment
-from .serializers import AttachmentSerializer
+from .models import Attachment, MapConfig
+from .serializers import AttachmentSerializer, MapConfigSerializer
 
 
 class UploadView(APIView):
@@ -71,3 +72,15 @@ class UploadView(APIView):
             data=AttachmentSerializer(attachment, context={"request": request}).data,
             message="上传成功",
         )
+
+
+class MapConfigAPIView(APIView):
+    """获取当前启用的地图配置。"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        config = MapConfig.objects.filter(is_active=True).order_by("-updated_at", "-id").first()
+        if not config:
+            return error_response("地图配置不存在", code=404, http_status=404)
+        return success_response(data=MapConfigSerializer(config).data)
