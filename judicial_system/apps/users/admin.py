@@ -95,7 +95,7 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         ("账号信息", {"fields": ("username", "password")}),
-        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization", "role")}),
+        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization","grid", "role")}),
         ("状态", {"fields": ("is_active",)}),
         ("时间", {"fields": ("last_login", "created_at", "updated_at")}),
     )
@@ -110,6 +110,7 @@ class UserAdmin(BaseUserAdmin):
                     "name",
                     "role",
                     "organization",
+                    "grid",
                     "is_active",
                     "gender",
                     "id_card",

@@ -12,6 +12,8 @@ from rest_framework import serializers
 
 from utils.validators import validate_password_strength, validate_phone
 
+from apps.grids.models import Grid
+
 from .models import Organization, User
 
 
@@ -21,6 +23,21 @@ class OrganizationSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = ["id", "name"]
+
+
+class GridSerializer(serializers.ModelSerializer):
+    """网格详细信息序列化器。"""
+
+    # 当前负责人的姓名
+    current_manager_name = serializers.CharField(
+        source="current_manager.name",
+        read_only=True,
+        allow_null=True
+    )
+
+    class Meta:
+        model = Grid
+        fields = ["id", "name", "region", "description", "current_manager_name"]
 
 
 class LoginSerializer(serializers.Serializer):
@@ -71,6 +88,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """个人信息详情。"""
 
     organization = OrganizationSimpleSerializer(read_only=True)
+    # 使用网格序列化器返回详细信息
+    grid = GridSerializer(read_only=True)
 
     class Meta:
         model = User
@@ -83,6 +102,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "phone",
             "role",
             "organization",
+            "grid",
             "is_active",
             "last_login",
             "created_at",

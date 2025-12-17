@@ -10,6 +10,8 @@ from __future__ import annotations
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
+from apps.grids.models import Grid
+
 
 class Organization(models.Model):
     """机构表（users_organization）。"""
@@ -113,6 +115,14 @@ class User(AbstractBaseUser):
         related_name="users",
         verbose_name="所属机构",
     )  # 所属机构
+    grid=models.ForeignKey(
+        Grid,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="users",
+        verbose_name="所属网格"
+    )
     role = models.CharField("角色", max_length=20, choices=Role.choices, default=Role.MEDIATOR)
     is_active = models.BooleanField("是否启用", default=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
