@@ -27,9 +27,13 @@ class ContentAttachmentSerializer(serializers.ModelSerializer):
         fields = ["id", "file"]
 
     def get_file(self, obj: ContentAttachment) -> str:
+        """返回文件访问 URL（绝对路径）。"""
         if not obj.file:
             return ""
         try:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.file.url)
             return obj.file.url
         except Exception:
             return ""
