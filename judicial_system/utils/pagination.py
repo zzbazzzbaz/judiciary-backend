@@ -19,6 +19,16 @@ class StandardPageNumberPagination(PageNumberPagination):
     page_size = 20
     max_page_size = 200
 
+    def get_page_number(self, request, paginator):
+        """
+        获取页码,如果参数为空或无效则返回默认值 1。
+        """
+        page_number = request.query_params.get(self.page_query_param, 1)
+        # 如果参数为空字符串或无效,使用默认值 1
+        if not page_number or page_number == '':
+            return 1
+        return page_number
+
     def get_paginated_response(self, data):
         page_size = self.get_page_size(self.request) or self.page_size
         return Response(
