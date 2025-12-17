@@ -8,7 +8,7 @@ SECRET_KEY = "django-insecure-5gzvjhuxw^2!x!zo6ux+skvm**%3cxn2m73^*z#ds_g=l_z)6p
 
 DEBUG = True
 
-ALLOWED_HOSTS: list[str] = []
+ALLOWED_HOSTS: list[str] = ["*"]
 
 INSTALLED_APPS = [
     "simpleui",
@@ -99,6 +99,11 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# CSRF 信任的源（用于反向代理和 FRP 等场景）
+CSRF_TRUSTED_ORIGINS = [
+    "https://8001.frp.chatgqt.top",
+]
 
 # 自定义用户模型
 AUTH_USER_MODEL = "users.User"
