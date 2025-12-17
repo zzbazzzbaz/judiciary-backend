@@ -151,9 +151,9 @@ class ProfileAPIView(APIView):
         # 需求：仅允许修改 phone
         serializer = ProfileUpdateSerializer(instance=request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()  # 保存并获取更新后的用户对象
         return success_response(
             message="更新成功",
-            data={"id": request.user.id, "phone": request.user.phone},
+            data={"id": user.id, "phone": user.phone},  # 返回修改后的手机号
         )
 

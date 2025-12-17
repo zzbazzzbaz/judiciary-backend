@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 
-from utils.permissions import IsAdmin
 from utils.responses import success_response
 from utils.validators import parse_bool
 
@@ -17,18 +15,14 @@ from ..serializers import OrganizationListSerializer
 class OrganizationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
     机构管理：
-    - GET /api/v1/organizations/        管理员（扁平列表）
-    - GET /api/v1/organizations/tree/   登录用户（树形结构）
+    - GET /api/v1/organizations/
+    - GET /api/v1/organizations/tree/
     """
 
     queryset = Organization.objects.select_related("parent").all().order_by("sort_order", "id")
     pagination_class = None  # 需求文档未要求分页，直接返回列表
     serializer_class = OrganizationListSerializer
-
-    def get_permissions(self):
-        if self.action == "tree":
-            return [IsAuthenticated()]
-        return [IsAdmin()]
+    permission_classes = []  # 无需登录，允许任何人访问
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()

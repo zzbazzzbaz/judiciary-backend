@@ -35,3 +35,14 @@ class IsMediator(BasePermission):
             and getattr(request.user, "role", None) == "mediator"
         )
 
+
+class IsStaff(BasePermission):
+    """工作人员权限（role in admin/grid_manager/mediator）。"""
+
+    def has_permission(self, request, view) -> bool:
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) in {"admin", "grid_manager", "mediator"}
+        )
+

@@ -11,7 +11,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
 from utils.pagination import StandardPageNumberPagination
-from utils.permissions import IsMediator
+from utils.permissions import IsStaff
 from utils.responses import error_response, success_response
 
 from apps.users.models import User
@@ -51,10 +51,9 @@ class TaskViewSet(
     pagination_class = StandardPageNumberPagination
 
     def get_permissions(self):
-        if self.action == "create":
-            return [IsMediator()]
-        if self.action in {"process", "complete", "my_reports"}:
-            return [IsMediator()]
+        # 管理员、网格负责人、调解员都可以上报和处理任务
+        if self.action in {"create", "process", "complete", "my_reports"}:
+            return [IsStaff()]
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
