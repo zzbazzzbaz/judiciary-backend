@@ -8,13 +8,16 @@ Users 子应用序列化器
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from rest_framework import serializers
 
 from utils.validators import validate_password_strength, validate_phone
 
+from apps.cases.models import Task
 from apps.grids.models import Grid
 
-from .models import Organization, User
+from .models import Organization, User, PerformanceScore
 
 
 class OrganizationSimpleSerializer(serializers.ModelSerializer):
@@ -90,6 +93,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
     organization = OrganizationSimpleSerializer(read_only=True)
     # 使用网格序列化器返回详细信息
     grid = GridSerializer(read_only=True)
+    # 本月绩效分数
+    monthly_performance = serializers.SerializerMethodField()
+    # 本月完成任务数
+    monthly_completed_tasks = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -107,7 +114,58 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "last_login",
             "created_at",
             "updated_at",
+            "monthly_performance",
+            "monthly_completed_tasks",
         ]
+
+    def get_monthly_performance(self, obj):
+        """获取本月绩效分数。
+
+        Args:
+            obj: User 实例
+
+        Returns:
+            int: 本月绩效分数，如果没有则返回 None
+        """
+        # 获取当前年月，格式：YYYY-MM
+        current_period = datetime.now().strftime("%Y-%m")
+
+        # 查询本月绩效记录
+        performance = PerformanceScore.objects.filter(
+            mediator=obj,
+            period=current_period
+        ).first()
+
+        return performance.score if performance else None
+
+    def get_monthly_completed_tasks(self, obj):
+        """获取本月完成任务数。
+
+        Args:
+            obj: User 实例
+
+        Returns:
+            int: 本月完成的任务数量
+        """
+        # 获取本月的起始时间
+        now = datetime.now()
+        month_start = datetime(now.year, now.month, 1)
+
+        # 计算下个月的起始时间
+        if now.month == 12:
+            next_month_start = datetime(now.year + 1, 1, 1)
+        else:
+            next_month_start = datetime(now.year, now.month + 1, 1)
+
+        # 查询本月完成的任务数量
+        count = Task.objects.filter(
+            assigned_mediator=obj,
+            status=Task.Status.COMPLETED,
+            completed_at__gte=month_start,
+            completed_at__lt=next_month_start
+        ).count()
+
+        return count
 
 class OrganizationListSerializer(serializers.ModelSerializer):
     """机构列表项（扁平结构）。"""
