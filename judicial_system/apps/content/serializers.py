@@ -8,6 +8,8 @@ Content 子应用序列化器
 
 from __future__ import annotations
 
+import re
+
 from rest_framework import serializers
 
 from apps.users.models import User
@@ -69,6 +71,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     publisher_name = serializers.CharField(source="publisher.name", read_only=True, allow_null=True)
     cover_image = serializers.SerializerMethodField()
     video = serializers.SerializerMethodField()
+    content = serializers.SerializerMethodField()
     files = ContentAttachmentSerializer(many=True, read_only=True)
 
     class Meta:
@@ -107,6 +110,20 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         except Exception:
             return ""
 
+    def get_content(self, obj: Article) -> str:
+        """将富文本中的相对路径转换为绝对 URL。"""
+        if not obj.content:
+            return ""
+        request = self.context.get("request")
+        if request:
+            content = re.sub(
+                r'src="(/media/[^"]+)"',
+                lambda m: f'src="{request.build_absolute_uri(m.group(1))}"',
+                obj.content,
+            )
+            return content
+        return obj.content
+
 
 class UserSimpleSerializer(serializers.ModelSerializer):
     """用户简要信息（id/name）。"""
@@ -139,6 +156,7 @@ class ActivityListSerializer(serializers.ModelSerializer):
 class ActivityDetailSerializer(serializers.ModelSerializer):
     """活动详情。"""
 
+    content = serializers.SerializerMethodField()
     files = ContentAttachmentSerializer(many=True, read_only=True)
     participant_count = serializers.IntegerField(read_only=True)
     is_joined = serializers.BooleanField(read_only=True)
@@ -157,6 +175,21 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
             "is_joined",
             "created_at",
         ]
+
+    def get_content(self, obj: Activity) -> str:
+        """将富文本中的相对路径转换为绝对 URL。"""
+        if not obj.content:
+            return ""
+        request = self.context.get("request")
+        if request:
+            # 替换 src="/media/..." 为完整 URL
+            content = re.sub(
+                r'src="(/media/[^"]+)"',
+                lambda m: f'src="{request.build_absolute_uri(m.group(1))}"',
+                obj.content,
+            )
+            return content
+        return obj.content
 
 
 class CategorySerializer(serializers.ModelSerializer):

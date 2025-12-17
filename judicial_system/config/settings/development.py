@@ -121,9 +121,29 @@ SIMPLE_JWT = {
 CKEDITOR_UPLOAD_PATH = "uploads/"
 CKEDITOR_CONFIGS = {
     "default": {
-        "toolbar": "full",
+        "toolbar": "Custom",  # 使用自定义工具栏
+        "toolbar_Custom": [
+            ["Bold", "Italic", "Underline", "Strike"],
+            ["NumberedList", "BulletedList", "-", "Outdent", "Indent"],
+            ["JustifyLeft", "JustifyCenter", "JustifyRight", "JustifyBlock"],
+            ["Link", "Unlink"],
+            ["Image", "Table", "HorizontalRule"],  # 图片上传按钮
+            ["TextColor", "BGColor"],
+            ["Smiley", "SpecialChar"],
+            ["Source"],
+            ["RemoveFormat"],
+        ],
         "height": 300,
         "width": "100%",
+        # 图片上传配置
+        "filebrowserUploadUrl": "/ckeditor/upload/",  # 文件上传 URL
+        "filebrowserImageUploadUrl": "/ckeditor/upload/",  # 图片上传 URL
+        "filebrowserBrowseUrl": "/ckeditor/browse/",  # 浏览已上传文件
+        "filebrowserImageBrowseUrl": "/ckeditor/browse/",  # 浏览已上传图片
+        # 允许的图片格式
+        "image_previewText": " ",
+        "tabSpaces": 4,
+        "removePlugins": "elementspath",  # 移除底部元素路径显示
     },
 }
 
