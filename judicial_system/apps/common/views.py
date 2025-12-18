@@ -9,7 +9,7 @@ Common 子应用 API 视图
 from __future__ import annotations
 
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from utils.file_utils import (
@@ -77,7 +77,7 @@ class UploadView(APIView):
 class MapConfigAPIView(APIView):
     """获取当前启用的地图配置。"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
         config = MapConfig.objects.filter(is_active=True).order_by("-updated_at", "-id").first()
