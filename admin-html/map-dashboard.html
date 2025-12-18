@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>网格/任务地图可视化面板</title>
+
+    <script>
+      window.tailwind = window.tailwind || {};
+      tailwind.config = { corePlugins: { preflight: false } };
+    </script>
+    <script src="./vendor/tailwindcss.js"></script>
+
+    <!-- 腾讯地图 SDK：必须同步加载以避免 document.write 问题 -->
+    <script src="https://map.qq.com/api/js?v=2.exp&key=4H4BZ-OJACL-DKBPM-E7Y5H-5VSK5-KFFKK&libraries=drawing,geometry"></script>
+
+    <style>
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          "Noto Sans",
+          "Apple Color Emoji",
+          "Segoe UI Emoji",
+          "Segoe UI Symbol",
+          "Noto Color Emoji";
+      }
+
+      /* 避免腾讯地图容器在某些环境下被压缩为 0 高度 */
+      #map {
+        min-height: 640px;
+      }
+    </style>
+  </head>
+
+  <body class="bg-slate-50 text-slate-900">
+    <div class="min-h-screen flex flex-col">
+      <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto w-full max-w-[1680px] px-4 py-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                地图
+              </div>
+              <div>
+                <div class="text-base font-semibold">网格/任务地图可视化面板</div>
+                <div class="text-xs text-slate-500">腾讯地图 · Tailwind CSS · API: /api/v1/*</div>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="text-xs text-slate-600">
+                API Base
+                <input
+                  id="api-base"
+                  class="ml-2 w-[320px] rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                  placeholder="http://localhost:8000"
+                />
+              </label>
+              <button
+                id="btn-reconnect"
+                type="button"
+                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                重新初始化
+              </button>
+              <span id="conn-pill" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+                <span id="conn-dot" class="h-2 w-2 rounded-full bg-slate-400"></span>
+                <span id="conn-text">未连接</span>
+              </span>
+            </div>
+          </div>
+
+          <div id="file-origin-tip" class="mt-2 hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            当前页面可能以 <span class="font-mono">file://</span> 打开，浏览器可能拦截跨域请求（CORS）。
+            建议用后端同域方式访问该页面，或在本地起一个静态服务器并配置后端允许跨域。
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto w-full max-w-[1680px] flex-1 px-4 py-4">
+        <div class="flex gap-4 items-stretch">
+          <section class="flex-1 min-h-[720px] rounded-xl border border-slate-200 bg-white relative overflow-hidden shadow-sm">
+            <div id="map" class="absolute inset-0"></div>
+
+            <div class="absolute top-3 left-3 z-10 w-[360px] max-w-[70vw] space-y-2">
+              <div class="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-sm backdrop-blur">
+                <div class="text-xs text-slate-600 leading-relaxed">
+                  - 网格围栏：<span class="font-mono">GET /api/v1/grids/</span><br />
+                  - 创建网格：<span class="font-mono">POST /api/v1/grids/create/</span><br />
+                  - 任务点：<span class="font-mono">POST /api/v1/tasks/map-points/</span><br />
+                  - 地图配置：<span class="font-mono">GET /api/v1/common/map-config/</span>
+                </div>
+              </div>
+              <div id="toast" class="hidden rounded-lg border px-3 py-2 text-sm shadow-sm"></div>
+            </div>
+
+            <div class="absolute bottom-3 right-3 z-10 flex flex-wrap gap-2">
+              <button
+                id="btn-center"
+                type="button"
+                class="rounded-md border border-slate-300 bg-white/90 px-3 py-2 text-sm shadow-sm hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                回到中心
+              </button>
+              <button
+                id="btn-refresh-tasks"
+                type="button"
+                class="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                刷新任务点（当前视野）
+              </button>
+            </div>
+          </section>
+
+          <aside class="w-[440px] max-w-[46vw] flex flex-col gap-4">
+            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold">地图配置</div>
+                  <div class="mt-1 text-xs text-slate-500">来自 /api/v1/common/map-config/</div>
+                </div>
+                <button
+                  id="btn-refresh-config"
+                  type="button"
+                  class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  刷新
+                </button>
+              </div>
+
+              <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div class="flex justify-between gap-3">
+                  <dt class="text-slate-500">zoom</dt>
+                  <dd id="cfg-zoom" class="font-mono text-slate-900">-</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-slate-500">center</dt>
+                  <dd id="cfg-center" class="font-mono text-slate-900">-</dd>
+                </div>
+                <div class="col-span-2 flex justify-between gap-3">
+                  <dt class="text-slate-500">api_key</dt>
+                  <dd id="cfg-key" class="font-mono text-slate-900 truncate max-w-[300px]" title="-">-</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold">网格围栏</div>
+                  <div class="mt-1 text-xs text-slate-500">列表来自 /api/v1/grids/</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    id="btn-toggle-grids"
+                    type="button"
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    隐藏围栏
+                  </button>
+                  <button
+                    id="btn-refresh-grids"
+                    type="button"
+                    class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    刷新
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 flex items-center justify-between gap-3">
+                <input
+                  id="grid-filter"
+                  type="search"
+                  class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                  placeholder="搜索：网格名称/所属区域"
+                />
+                <span id="grid-count" class="shrink-0 text-xs text-slate-500">0</span>
+              </div>
+              <ul id="grid-list" class="mt-3 space-y-2 max-h-[220px] overflow-auto pr-1"></ul>
+              <p id="grid-empty" class="mt-3 hidden text-xs text-slate-500">暂无可显示的网格。</p>
+            </section>
+
+            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold">任务点</div>
+                  <div class="mt-1 text-xs text-slate-500">当前视野任务点来自 /api/v1/tasks/map-points/</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    id="btn-toggle-tasks"
+                    type="button"
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    隐藏任务点
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 flex items-center justify-between gap-3">
+                <input
+                  id="task-filter"
+                  type="search"
+                  class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                  placeholder="搜索：任务编号/当事人/地址"
+                />
+                <span id="task-count" class="shrink-0 text-xs text-slate-500">0</span>
+              </div>
+
+              <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
+                  <span class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>reported
+                </span>
+                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
+                  <span class="h-2.5 w-2.5 rounded-full bg-indigo-600"></span>assigned
+                </span>
+                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
+                  <span class="h-2.5 w-2.5 rounded-full bg-amber-600"></span>processing
+                </span>
+                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
+                  <span class="h-2.5 w-2.5 rounded-full bg-emerald-600"></span>completed
+                </span>
+              </div>
+
+              <ul id="task-list" class="mt-3 space-y-2 max-h-[240px] overflow-auto pr-1"></ul>
+              <p id="task-empty" class="mt-3 hidden text-xs text-slate-500">
+                暂无任务点。点击地图右下角「刷新任务点（当前视野）」加载。
+              </p>
+            </section>
+
+            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold">创建网格</div>
+                  <div class="mt-1 text-xs text-slate-500">绘制围栏后调用 /api/v1/grids/create/</div>
+                </div>
+              </div>
+
+              <div class="mt-3 grid gap-3">
+                <label class="text-xs text-slate-600">
+                  网格名称
+                  <input
+                    id="create-grid-name"
+                    class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                    placeholder="例如：朝阳网格"
+                  />
+                </label>
+
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    id="btn-draw-start"
+                    type="button"
+                    class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    开始绘制
+                  </button>
+                  <button
+                    id="btn-draw-clear"
+                    type="button"
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                  >
+                    清除
+                  </button>
+                  <button
+                    id="btn-create-grid"
+                    type="button"
+                    class="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                  >
+                    创建网格
+                  </button>
+                </div>
+
+                <label class="text-xs text-slate-600">
+                  边界坐标（[[lng, lat], ...]）
+                  <textarea
+                    id="create-grid-boundary"
+                    readonly
+                    class="mt-1 w-full min-h-[120px] resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-900 shadow-sm focus:outline-none"
+                    placeholder="绘制完成后自动生成"
+                  ></textarea>
+                </label>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      (function () {
+        var elApiBase = document.getElementById("api-base");
+        var elReconnect = document.getElementById("btn-reconnect");
+        var elConnText = document.getElementById("conn-text");
+        var elConnDot = document.getElementById("conn-dot");
+        var elFileOriginTip = document.getElementById("file-origin-tip");
+
+        var elCfgZoom = document.getElementById("cfg-zoom");
+        var elCfgCenter = document.getElementById("cfg-center");
+        var elCfgKey = document.getElementById("cfg-key");
+        var btnRefreshConfig = document.getElementById("btn-refresh-config");
+
+        var mapEl = document.getElementById("map");
+        var btnCenter = document.getElementById("btn-center");
+        var btnRefreshTasks = document.getElementById("btn-refresh-tasks");
+        var btnRefreshGrids = document.getElementById("btn-refresh-grids");
+        var btnToggleGrids = document.getElementById("btn-toggle-grids");
+        var btnToggleTasks = document.getElementById("btn-toggle-tasks");
+
+        var gridFilterEl = document.getElementById("grid-filter");
+        var gridCountEl = document.getElementById("grid-count");
+        var gridListEl = document.getElementById("grid-list");
+        var gridEmptyEl = document.getElementById("grid-empty");
+
+        var taskFilterEl = document.getElementById("task-filter");
+        var taskCountEl = document.getElementById("task-count");
+        var taskListEl = document.getElementById("task-list");
+        var taskEmptyEl = document.getElementById("task-empty");
+
+        var createNameEl = document.getElementById("create-grid-name");
+        var createBoundaryEl = document.getElementById("create-grid-boundary");
+        var btnDrawStart = document.getElementById("btn-draw-start");
+        var btnDrawClear = document.getElementById("btn-draw-clear");
+        var btnCreateGrid = document.getElementById("btn-create-grid");
+
+        var toastEl = document.getElementById("toast");
+
+        var state = {
+          apiBase: "",
+          mapConfig: null,
+          tencentLoaded: false,
+          map: null,
+          initialCenter: null,
+          initialZoom: null,
+          infoWin: null,
+          grids: [],
+          gridPolygons: {},
+          gridSelectedId: null,
+          gridsVisible: true,
+          tasks: [],
+          taskMarkers: {},
+          taskSelectedId: null,
+          tasksVisible: true,
+          drawingManager: null,
+          draftPolygon: null
+        };
+
+        function setConnStatus(text, tone) {
+          elConnText.textContent = text || "";
+          var color = tone === "ok" ? "bg-emerald-500" : tone === "error" ? "bg-red-500" : "bg-slate-400";
+          elConnDot.className = "h-2 w-2 rounded-full " + color;
+        }
+
+        function showToast(text, tone) {
+          if (!toastEl) return;
+          if (!text) {
+            toastEl.classList.add("hidden");
+            toastEl.textContent = "";
+            return;
+          }
+          toastEl.textContent = text;
+          toastEl.classList.remove("hidden");
+          toastEl.className =
+            "rounded-lg border px-3 py-2 text-sm shadow-sm " +
+            (tone === "ok"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : tone === "error"
+                ? "border-red-200 bg-red-50 text-red-900"
+                : "border-slate-200 bg-white/90 text-slate-800");
+        }
+
+        function toNumber(v, fallback) {
+          if (v === null || typeof v === "undefined") return fallback;
+          if (typeof v === "string" && v.trim() === "") return fallback;
+          var n = Number(v);
+          return isFinite(n) ? n : fallback;
+        }
+
+        function sleep(ms) {
+          return new Promise(function (resolve) { setTimeout(resolve, ms); });
+        }
+
+        function escapeHtml(s) {
+          return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        }
+
+        function joinUrl(base, path) {
+          var b = String(base || "").replace(/\/+$/, "");
+          var p = String(path || "");
+          if (!p) return b;
+          if (/^https?:\/\//i.test(p)) return p;
+          if (p.charAt(0) !== "/") p = "/" + p;
+          return b + p;
+        }
+
+        function isSameOrigin(url) {
+          try {
+            var u = new URL(url, window.location.href);
+            return u.origin === window.location.origin;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        function getCookie(name) {
+          try {
+            var m = document.cookie.match(new RegExp("(^|; )" + name + "=([^;]*)"));
+            return m ? decodeURIComponent(m[2]) : "";
+          } catch (e) {
+            return "";
+          }
+        }
+
+        async function apiRequest(path, options) {
+          var url = joinUrl(state.apiBase, path);
+          var headers = Object.assign({ Accept: "application/json" }, (options && options.headers) || {});
+          var body = options && options.body;
+          var method = (options && options.method) || (body ? "POST" : "GET");
+          if (body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+
+          var csrf = getCookie("csrftoken");
+          if (csrf && !headers["X-CSRFToken"]) headers["X-CSRFToken"] = csrf;
+
+          var controller = new AbortController();
+          var timeout = setTimeout(function () { controller.abort(); }, 15000);
+          var creds = isSameOrigin(url) ? "same-origin" : "omit";
+
+          try {
+            var res = await fetch(url, {
+              method: method,
+              headers: headers,
+              body: body,
+              credentials: creds,
+              signal: controller.signal
+            });
+            var text = await res.text();
+            var json = null;
+            try {
+              json = text ? JSON.parse(text) : null;
+            } catch (e) {
+              json = null;
+            }
+
+            if (!res.ok) {
+              var msg = (json && json.message) || (text ? text.slice(0, 160) : "") || ("HTTP " + res.status);
+              throw new Error(msg);
+            }
+            if (json && typeof json === "object" && "code" in json) {
+              if (Number(json.code) !== 200) {
+                throw new Error(json.message || "请求失败");
+              }
+              return json.data;
+            }
+            return json;
+          } finally {
+            clearTimeout(timeout);
+          }
+        }
+
+        function setConfigView(cfg) {
+          elCfgZoom.textContent = cfg && cfg.zoom_level != null ? String(cfg.zoom_level) : "-";
+          var lng = cfg ? String(cfg.center_longitude || "") : "";
+          var lat = cfg ? String(cfg.center_latitude || "") : "";
+          elCfgCenter.textContent = lng && lat ? lng + ", " + lat : "-";
+          var key = cfg ? String(cfg.api_key || "") : "";
+          elCfgKey.textContent = key ? key : "-";
+          elCfgKey.title = key ? key : "-";
+        }
+
+        function ensureTencentSdk(apiKey) {
+          // SDK 已在 HTML head 中同步加载，直接检查是否可用
+          if (window.qq && window.qq.maps && window.qq.maps.LatLng) {
+            console.log('[DEBUG] 腾讯地图 SDK 已就绪');
+            state.tencentLoaded = true;
+            return Promise.resolve();
+          }
+
+          // 如果还未加载完成，等待一下
+          return new Promise(function (resolve, reject) {
+            var checkCount = 0;
+            var checkInterval = setInterval(function() {
+              checkCount++;
+              if (window.qq && window.qq.maps && window.qq.maps.LatLng) {
+                clearInterval(checkInterval);
+                console.log('[DEBUG] 腾讯地图 SDK 已就绪');
+                state.tencentLoaded = true;
+                resolve();
+              } else if (checkCount > 30) {
+                clearInterval(checkInterval);
+                reject(new Error("腾讯地图 SDK 加载超时，请检查网络或刷新页面"));
+              }
+            }, 100);
+          });
+        }
+
+        function destroyOverlays(obj) {
+          Object.keys(obj || {}).forEach(function (k) {
+            try {
+              obj[k].setMap && obj[k].setMap(null);
+            } catch (e) {}
+          });
+        }
+
+        function clearDraftPolygon() {
+          if (state.draftPolygon) {
+            try {
+              state.draftPolygon.setMap(null);
+            } catch (e) {}
+            state.draftPolygon = null;
+          }
+          createBoundaryEl.value = "";
+          btnDrawClear.disabled = true;
+          btnCreateGrid.disabled = true;
+        }
+
+        function setSelectedGrid(id) {
+          state.gridSelectedId = id ? String(id) : null;
+          var items = gridListEl.querySelectorAll("[data-grid-id]");
+          for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var match = state.gridSelectedId && it.getAttribute("data-grid-id") === String(state.gridSelectedId);
+            it.classList.toggle("border-blue-500", !!match);
+            it.classList.toggle("bg-blue-50", !!match);
+            it.classList.toggle("ring-1", !!match);
+            it.classList.toggle("ring-blue-200", !!match);
+          }
+        }
+
+        function setSelectedTask(id) {
+          state.taskSelectedId = id ? String(id) : null;
+          var items = taskListEl.querySelectorAll("[data-task-id]");
+          for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var match = state.taskSelectedId && it.getAttribute("data-task-id") === String(state.taskSelectedId);
+            it.classList.toggle("border-emerald-500", !!match);
+            it.classList.toggle("bg-emerald-50", !!match);
+            it.classList.toggle("ring-1", !!match);
+            it.classList.toggle("ring-emerald-200", !!match);
+          }
+        }
+
+        function getTaskTone(status) {
+          var s = String(status || "");
+          if (s === "completed") return { name: "completed", color: "#059669", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700" };
+          if (s === "processing") return { name: "processing", color: "#d97706", bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700" };
+          if (s === "assigned") return { name: "assigned", color: "#4f46e5", bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700" };
+          return { name: "reported", color: "#64748b", bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700" };
+        }
+
+        function svgDotDataUri(fill) {
+          var svg =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">' +
+            '<circle cx="12" cy="12" r="8" fill="' + String(fill) + '" />' +
+            '<circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3" />' +
+            "</svg>";
+          return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+        }
+
+        function makeMarkerIcon(color) {
+          var url = svgDotDataUri(color);
+          try {
+            if (window.qq && qq.maps && qq.maps.MarkerImage && qq.maps.Size && qq.maps.Point) {
+              return new qq.maps.MarkerImage(url, new qq.maps.Size(24, 24), new qq.maps.Point(0, 0), new qq.maps.Point(12, 12));
+            }
+          } catch (e) {}
+          return url;
+        }
+
+        function initMap() {
+          var cfg = state.mapConfig;
+          var centerLat = toNumber(cfg && cfg.center_latitude, 39.9087);
+          var centerLng = toNumber(cfg && cfg.center_longitude, 116.3974);
+          var zoom = Math.max(3, Math.min(20, toNumber(cfg && cfg.zoom_level, 12)));
+
+          state.initialCenter = new qq.maps.LatLng(centerLat, centerLng);
+          state.initialZoom = zoom;
+          state.map = new qq.maps.Map(mapEl, { center: state.initialCenter, zoom: zoom });
+          state.infoWin = new qq.maps.InfoWindow({ map: state.map });
+
+          qq.maps.event.addListener(state.map, "click", function () {
+            try { state.infoWin && state.infoWin.close && state.infoWin.close(); } catch (e) {}
+            setSelectedGrid(null);
+            setSelectedTask(null);
+          });
+
+          btnCenter.disabled = false;
+          btnRefreshTasks.disabled = false;
+          btnRefreshGrids.disabled = false;
+          btnToggleGrids.disabled = false;
+          btnToggleTasks.disabled = false;
+          btnDrawStart.disabled = false;
+        }
+
+        function renderGrids() {
+          destroyOverlays(state.gridPolygons);
+          state.gridPolygons = {};
+          setSelectedGrid(null);
+
+          if (!state.gridsVisible) return;
+          if (!Array.isArray(state.grids) || state.grids.length === 0) return;
+          if (!state.map) return;
+
+          var bounds = new qq.maps.LatLngBounds();
+          var hasBounds = false;
+
+          state.grids.forEach(function (grid) {
+            if (!grid || !Array.isArray(grid.boundary) || grid.boundary.length < 3) return;
+            var path = [];
+            for (var i = 0; i < grid.boundary.length; i++) {
+              var pt = grid.boundary[i];
+              if (!Array.isArray(pt) || pt.length < 2) continue;
+              var lng = Number(pt[0]);
+              var lat = Number(pt[1]);
+              if (!isFinite(lng) || !isFinite(lat)) continue;
+              var ll = new qq.maps.LatLng(lat, lng);
+              path.push(ll);
+              bounds.extend(ll);
+              hasBounds = true;
+            }
+            if (path.length < 3) return;
+
+            var poly = new qq.maps.Polygon({
+              map: state.map,
+              path: path,
+              strokeColor: "#2563eb",
+              strokeWeight: 2,
+              fillColor: "#ffffff",
+              fillOpacity: 0
+            });
+            state.gridPolygons[String(grid.id)] = poly;
+
+            qq.maps.event.addListener(poly, "click", function (evt) {
+              setSelectedGrid(String(grid.id));
+              var mgr = grid.current_manager && grid.current_manager.name ? grid.current_manager.name : "-";
+              var mediators = Array.isArray(grid.mediators) ? grid.mediators.length : 0;
+              var html =
+                "<div style='min-width:220px;line-height:1.6;'>" +
+                "<div style='font-weight:600;margin-bottom:6px;'>" +
+                escapeHtml(grid.name || "") +
+                "</div>" +
+                "<div style='color:#666;font-size:12px;'>" +
+                "所属区域：" +
+                escapeHtml(grid.region || "-") +
+                "<br>" +
+                "负责人：" +
+                escapeHtml(mgr) +
+                "<br>" +
+                "调解员数量：" +
+                escapeHtml(mediators) +
+                "</div>" +
+                "</div>";
+              try {
+                state.infoWin.setContent(html);
+                if (evt && evt.latLng) state.infoWin.setPosition(evt.latLng);
+                state.infoWin.open();
+              } catch (e) {}
+            });
+          });
+
+          if (hasBounds && state.map.fitBounds) {
+            try { state.map.fitBounds(bounds); } catch (e) {}
+          }
+        }
+
+        function renderGridList() {
+          gridListEl.innerHTML = "";
+          var grids = Array.isArray(state.grids) ? state.grids.slice() : [];
+          gridCountEl.textContent = String(grids.length);
+          if (grids.length === 0) {
+            gridEmptyEl.classList.remove("hidden");
+            return;
+          }
+          gridEmptyEl.classList.add("hidden");
+
+          grids.forEach(function (grid) {
+            var li = document.createElement("li");
+            li.className =
+              "cursor-pointer rounded-lg border border-slate-200 bg-white p-2 hover:border-blue-300 hover:bg-blue-50";
+            li.setAttribute("data-grid-id", String(grid.id));
+            var mgr = grid.current_manager && grid.current_manager.name ? grid.current_manager.name : "";
+            var mediators = Array.isArray(grid.mediators) ? grid.mediators.length : 0;
+            li.innerHTML =
+              "<div class='flex items-start justify-between gap-2'>" +
+              "<div class='font-semibold text-slate-900 truncate'>" +
+              escapeHtml(grid.name || "") +
+              "</div>" +
+              "<span class='shrink-0 text-xs rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-blue-700'>围栏</span>" +
+              "</div>" +
+              "<div class='mt-1 text-xs text-slate-500 leading-relaxed'>" +
+              "区域：" +
+              escapeHtml(grid.region || "-") +
+              " · 调解员：" +
+              escapeHtml(mediators) +
+              (mgr ? " · 负责人：" + escapeHtml(mgr) : "") +
+              "</div>";
+
+            li.addEventListener("click", function () {
+              setSelectedGrid(String(grid.id));
+              var poly = state.gridPolygons[String(grid.id)];
+              if (poly && poly.getPath) {
+                try {
+                  var path = poly.getPath();
+                  var b = new qq.maps.LatLngBounds();
+                  for (var i = 0; i < path.getLength(); i++) b.extend(path.getAt(i));
+                  state.map.fitBounds && state.map.fitBounds(b);
+                } catch (e) {}
+              }
+            });
+
+            gridListEl.appendChild(li);
+          });
+
+          applyGridFilter();
+        }
+
+        function applyGridFilter() {
+          var q = (gridFilterEl.value || "").trim().toLowerCase();
+          var items = gridListEl.querySelectorAll("[data-grid-id]");
+          if (!q) {
+            for (var i = 0; i < items.length; i++) items[i].style.display = "";
+            return;
+          }
+          for (var j = 0; j < items.length; j++) {
+            var item = items[j];
+            var id = item.getAttribute("data-grid-id");
+            var grid = null;
+            for (var k = 0; k < state.grids.length; k++) {
+              if (String(state.grids[k].id) === String(id)) { grid = state.grids[k]; break; }
+            }
+            if (!grid) {
+              item.style.display = "none";
+              continue;
+            }
+            var hay = (String(grid.name || "") + " " + String(grid.region || "")).toLowerCase();
+            item.style.display = hay.indexOf(q) !== -1 ? "" : "none";
+          }
+        }
+
+        function getBoundsPoints() {
+          if (!state.map || !state.map.getBounds) return null;
+          var b = state.map.getBounds();
+          if (!b || !b.getNorthEast || !b.getSouthWest) return null;
+          var ne = b.getNorthEast();
+          var sw = b.getSouthWest();
+          if (!ne || !sw) return null;
+          return [
+            { lng: sw.getLng(), lat: ne.getLat() }, // 左上
+            { lng: sw.getLng(), lat: sw.getLat() }, // 左下
+            { lng: ne.getLng(), lat: ne.getLat() }, // 右上
+            { lng: ne.getLng(), lat: sw.getLat() } // 右下
+          ];
+        }
+
+        function renderTasks() {
+          destroyOverlays(state.taskMarkers);
+          state.taskMarkers = {};
+          setSelectedTask(null);
+
+          if (!state.tasksVisible) return;
+          if (!Array.isArray(state.tasks) || state.tasks.length === 0) return;
+          if (!state.map) return;
+
+          state.tasks.forEach(function (task) {
+            var lng = toNumber(task && task.report_lng, NaN);
+            var lat = toNumber(task && task.report_lat, NaN);
+            if (!isFinite(lng) || !isFinite(lat)) return;
+            var tone = getTaskTone(task.status);
+            var marker = new qq.maps.Marker({
+              map: state.map,
+              position: new qq.maps.LatLng(lat, lng),
+              title: String(task.code || ""),
+              icon: makeMarkerIcon(tone.color)
+            });
+            state.taskMarkers[String(task.id)] = marker;
+
+            qq.maps.event.addListener(marker, "click", function (evt) {
+              setSelectedTask(String(task.id));
+              var html =
+                "<div style='min-width:240px;line-height:1.6;'>" +
+                "<div style='font-weight:600;margin-bottom:6px;'>" +
+                escapeHtml(task.code || "") +
+                "</div>" +
+                "<div style='color:#666;font-size:12px;'>" +
+                "状态：" +
+                escapeHtml(task.status || "-") +
+                "<br>" +
+                "当事人：" +
+                escapeHtml(task.party_name || "-") +
+                "<br>" +
+                "地址：" +
+                escapeHtml(task.report_address || "-") +
+                "</div>" +
+                "</div>";
+              try {
+                state.infoWin.setContent(html);
+                if (evt && evt.latLng) state.infoWin.setPosition(evt.latLng);
+                state.infoWin.open();
+              } catch (e) {}
+            });
+          });
+        }
+
+        function renderTaskList() {
+          taskListEl.innerHTML = "";
+          var tasks = Array.isArray(state.tasks) ? state.tasks.slice() : [];
+          taskCountEl.textContent = String(tasks.length);
+          if (tasks.length === 0) {
+            taskEmptyEl.classList.remove("hidden");
+            return;
+          }
+          taskEmptyEl.classList.add("hidden");
+
+          tasks.forEach(function (task) {
+            var tone = getTaskTone(task.status);
+            var li = document.createElement("li");
+            li.className =
+              "cursor-pointer rounded-lg border border-slate-200 bg-white p-2 hover:border-emerald-300 hover:bg-emerald-50";
+            li.setAttribute("data-task-id", String(task.id));
+            li.innerHTML =
+              "<div class='flex items-start justify-between gap-2'>" +
+              "<div class='font-semibold text-slate-900 truncate'>" +
+              escapeHtml(task.code || "") +
+              "</div>" +
+              "<span class='shrink-0 text-xs rounded-full border " +
+              tone.border +
+              " " +
+              tone.bg +
+              " px-2 py-0.5 " +
+              tone.text +
+              "'>" +
+              escapeHtml(tone.name) +
+              "</span>" +
+              "</div>" +
+              "<div class='mt-1 text-xs text-slate-500 leading-relaxed'>" +
+              "当事人：" +
+              escapeHtml(task.party_name || "-") +
+              (task.report_address ? " · " + escapeHtml(task.report_address) : "") +
+              "</div>";
+
+            li.addEventListener("click", function () {
+              setSelectedTask(String(task.id));
+              var lng = toNumber(task && task.report_lng, NaN);
+              var lat = toNumber(task && task.report_lat, NaN);
+              if (isFinite(lng) && isFinite(lat) && state.map) {
+                try {
+                  state.map.panTo ? state.map.panTo(new qq.maps.LatLng(lat, lng)) : state.map.setCenter(new qq.maps.LatLng(lat, lng));
+                } catch (e) {}
+              }
+            });
+            taskListEl.appendChild(li);
+          });
+
+          applyTaskFilter();
+        }
+
+        function applyTaskFilter() {
+          var q = (taskFilterEl.value || "").trim().toLowerCase();
+          var items = taskListEl.querySelectorAll("[data-task-id]");
+          if (!q) {
+            for (var i = 0; i < items.length; i++) items[i].style.display = "";
+            return;
+          }
+          for (var j = 0; j < items.length; j++) {
+            var item = items[j];
+            var id = item.getAttribute("data-task-id");
+            var task = null;
+            for (var k = 0; k < state.tasks.length; k++) {
+              if (String(state.tasks[k].id) === String(id)) { task = state.tasks[k]; break; }
+            }
+            if (!task) {
+              item.style.display = "none";
+              continue;
+            }
+            var hay =
+              (String(task.code || "") +
+                " " +
+                String(task.party_name || "") +
+                " " +
+                String(task.report_address || "")).toLowerCase();
+            item.style.display = hay.indexOf(q) !== -1 ? "" : "none";
+          }
+        }
+
+        function ensureDrawingManager() {
+          if (!state.map) throw new Error("地图未初始化");
+          if (!qq.maps.drawing || !qq.maps.drawing.DrawingManager) {
+            throw new Error("腾讯地图 SDK 未加载 drawing 库（libraries=drawing,geometry）");
+          }
+          if (state.drawingManager) return state.drawingManager;
+
+          state.drawingManager = new qq.maps.drawing.DrawingManager({
+            drawingMode: qq.maps.drawing.OverlayType.POLYGON,
+            drawingControl: false,
+            polygonOptions: {
+              strokeColor: "#2563eb",
+              strokeWeight: 2,
+              fillColor: "#2563eb",
+              fillOpacity: 0.18
+            }
+          });
+          state.drawingManager.setMap(state.map);
+          qq.maps.event.addListener(state.drawingManager, "overlaycomplete", function (event) {
+            clearDraftPolygon();
+            state.draftPolygon = event.overlay;
+            if (state.draftPolygon && state.draftPolygon.setEditable) state.draftPolygon.setEditable(true);
+            attachDraftPathListeners();
+            updateDraftOutputs();
+            btnDrawClear.disabled = false;
+            btnCreateGrid.disabled = !((createNameEl.value || "").trim());
+            showToast("绘制完成：可拖拽顶点调整，确认后点击「创建网格」。", "ok");
+            if (state.drawingManager && state.drawingManager.close) state.drawingManager.close();
+          });
+          return state.drawingManager;
+        }
+
+        function attachDraftPathListeners() {
+          if (!state.draftPolygon || !state.draftPolygon.getPath) return;
+          var path = state.draftPolygon.getPath();
+          qq.maps.event.addListener(path, "insert_at", function () { updateDraftOutputs(); });
+          qq.maps.event.addListener(path, "remove_at", function () { updateDraftOutputs(); });
+          qq.maps.event.addListener(path, "set_at", function () { updateDraftOutputs(); });
+        }
+
+        function getDraftBoundary() {
+          if (!state.draftPolygon || !state.draftPolygon.getPath) return [];
+          var path = state.draftPolygon.getPath();
+          var coords = [];
+          for (var i = 0; i < path.getLength(); i++) {
+            var ll = path.getAt(i);
+            coords.push([Number(ll.getLng().toFixed(7)), Number(ll.getLat().toFixed(7))]);
+          }
+          return coords;
+        }
+
+        function updateDraftOutputs() {
+          var coords = getDraftBoundary();
+          createBoundaryEl.value = coords.length >= 3 ? JSON.stringify(coords) : "";
+          btnCreateGrid.disabled = !(coords.length >= 3 && (createNameEl.value || "").trim());
+        }
+
+        async function loadConfigAndInitMap() {
+          console.log('[DEBUG] loadConfigAndInitMap() 开始');
+          setConnStatus("连接中…", "info");
+          showToast("", "");
+
+          console.log('[DEBUG] 准备请求地图配置:', state.apiBase + "/api/v1/common/map-config/");
+          var cfg = await apiRequest("/api/v1/common/map-config/");
+          console.log('[DEBUG] 地图配置获取成功:', cfg);
+          state.mapConfig = cfg;
+          setConfigView(cfg);
+
+          console.log('[DEBUG] 准备加载腾讯地图 SDK');
+          await ensureTencentSdk(cfg && cfg.api_key);
+          console.log('[DEBUG] 腾讯地图 SDK 加载成功');
+          initMap();
+          setConnStatus("已连接", "ok");
+          console.log('[DEBUG] 地图初始化完成');
+        }
+
+        async function refreshGrids() {
+          if (!state.map) throw new Error("地图未初始化");
+          var grids = await apiRequest("/api/v1/grids/");
+          state.grids = Array.isArray(grids) ? grids : [];
+          renderGridList();
+          renderGrids();
+          showToast("网格已刷新，共 " + state.grids.length + " 个。", "ok");
+        }
+
+        async function refreshTasks() {
+          if (!state.map) throw new Error("地图未初始化");
+          var points = null;
+          for (var i = 0; i < 10; i++) {
+            points = getBoundsPoints();
+            if (points) break;
+            await sleep(200);
+          }
+          if (!points) throw new Error("无法获取地图边界，请稍后重试");
+          var data = await apiRequest("/api/v1/tasks/map-points/", { method: "POST", body: JSON.stringify({ points: points }) });
+          state.tasks = Array.isArray(data) ? data : [];
+          renderTaskList();
+          renderTasks();
+          showToast("任务点已刷新，共 " + state.tasks.length + " 个。", "ok");
+        }
+
+        async function createGrid() {
+          var name = (createNameEl.value || "").trim();
+          if (!name) throw new Error("请填写网格名称");
+          var boundary = getDraftBoundary();
+          if (!Array.isArray(boundary) || boundary.length < 3) throw new Error("请先绘制网格围栏（至少 3 个点）");
+
+          btnCreateGrid.disabled = true;
+          var resp = await apiRequest("/api/v1/grids/create/", { method: "POST", body: JSON.stringify({ name: name, boundary: boundary }) });
+          showToast("创建成功：ID=" + (resp && resp.id ? resp.id : "-") + "，正在刷新网格列表…", "ok");
+          clearDraftPolygon();
+          createNameEl.value = "";
+          await refreshGrids();
+        }
+
+        function setUiDisabled(disabled) {
+          var ids = [
+            "btn-center",
+            "btn-refresh-tasks",
+            "btn-refresh-config",
+            "btn-refresh-grids",
+            "btn-toggle-grids",
+            "btn-toggle-tasks",
+            "btn-draw-start",
+            "btn-draw-clear",
+            "btn-create-grid"
+          ];
+          ids.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = !!disabled;
+          });
+        }
+
+        function bindEvents() {
+          gridFilterEl.addEventListener("input", function () { applyGridFilter(); });
+          taskFilterEl.addEventListener("input", function () { applyTaskFilter(); });
+          createNameEl.addEventListener("input", function () { updateDraftOutputs(); });
+
+          btnCenter.addEventListener("click", function () {
+            if (!state.map) return;
+            try {
+              state.infoWin && state.infoWin.close && state.infoWin.close();
+            } catch (e) {}
+            setSelectedGrid(null);
+            setSelectedTask(null);
+            try {
+              state.map.panTo ? state.map.panTo(state.initialCenter) : state.map.setCenter(state.initialCenter);
+              state.map.setZoom && state.map.setZoom(state.initialZoom);
+            } catch (e) {}
+          });
+
+          btnRefreshConfig.addEventListener("click", function () {
+            reconnect().catch(function (e) { showToast(e.message || String(e), "error"); });
+          });
+
+          btnRefreshGrids.addEventListener("click", function () {
+            refreshGrids().catch(function (e) { showToast(e.message || String(e), "error"); });
+          });
+
+          btnRefreshTasks.addEventListener("click", function () {
+            refreshTasks().catch(function (e) { showToast(e.message || String(e), "error"); });
+          });
+
+          btnToggleGrids.addEventListener("click", function () {
+            state.gridsVisible = !state.gridsVisible;
+            btnToggleGrids.textContent = state.gridsVisible ? "隐藏围栏" : "显示围栏";
+            renderGrids();
+            showToast(state.gridsVisible ? "已显示网格围栏。" : "已隐藏网格围栏。", "info");
+          });
+
+          btnToggleTasks.addEventListener("click", function () {
+            state.tasksVisible = !state.tasksVisible;
+            btnToggleTasks.textContent = state.tasksVisible ? "隐藏任务点" : "显示任务点";
+            renderTasks();
+            showToast(state.tasksVisible ? "已显示任务点。" : "已隐藏任务点。", "info");
+          });
+
+          btnDrawStart.addEventListener("click", function () {
+            try {
+              var dm = ensureDrawingManager();
+              dm.setDrawingMode(qq.maps.drawing.OverlayType.POLYGON);
+              dm.open && dm.open();
+              showToast("正在绘制：点击多个点，双击结束。", "info");
+            } catch (e) {
+              showToast(e.message || String(e), "error");
+            }
+          });
+
+          btnDrawClear.addEventListener("click", function () {
+            clearDraftPolygon();
+            showToast("已清除绘制围栏。", "info");
+          });
+
+          btnCreateGrid.addEventListener("click", function () {
+            createGrid().catch(function (e) { showToast(e.message || String(e), "error"); });
+          });
+
+          elReconnect.addEventListener("click", function () {
+            reconnect().catch(function (e) { showToast(e.message || String(e), "error"); });
+          });
+        }
+
+        async function reconnect() {
+          setUiDisabled(true);
+          showToast("", "");
+          setConnStatus("连接中…", "info");
+          clearDraftPolygon();
+          destroyOverlays(state.gridPolygons);
+          destroyOverlays(state.taskMarkers);
+
+          state.map = null;
+          state.infoWin = null;
+          state.grids = [];
+          state.tasks = [];
+          state.gridPolygons = {};
+          state.taskMarkers = {};
+          state.gridsVisible = true;
+          state.tasksVisible = true;
+          btnToggleGrids.textContent = "隐藏围栏";
+          btnToggleTasks.textContent = "隐藏任务点";
+          renderGridList();
+          renderTaskList();
+
+          mapEl.innerHTML = "";
+
+          try {
+            await loadConfigAndInitMap();
+            await refreshGrids();
+            try {
+              await refreshTasks();
+            } catch (e) {
+              showToast("任务点加载失败：" + (e && e.message ? e.message : String(e)), "error");
+            }
+            setUiDisabled(false);
+          } catch (e) {
+            setConnStatus("连接失败", "error");
+            setUiDisabled(false);
+            throw e;
+          }
+        }
+
+        function initApiBase() {
+          var defaultBase = "";
+          if (window.location && window.location.origin && window.location.origin !== "null") {
+            defaultBase = window.location.origin;
+          } else {
+            defaultBase = "http://localhost:8000";
+            if (elFileOriginTip) elFileOriginTip.classList.remove("hidden");
+          }
+          var stored = "";
+          try { stored = localStorage.getItem("judiciary.adminHtml.apiBase") || ""; } catch (e) {}
+          state.apiBase = (stored || defaultBase).replace(/\/+$/, "");
+          elApiBase.value = state.apiBase;
+
+          elApiBase.addEventListener("change", function () {
+            state.apiBase = (elApiBase.value || "").trim().replace(/\/+$/, "");
+            try { localStorage.setItem("judiciary.adminHtml.apiBase", state.apiBase); } catch (e) {}
+          });
+        }
+
+        function boot() {
+          console.log('[DEBUG] boot() 开始执行');
+          setUiDisabled(true);
+          btnCenter.disabled = true;
+          btnRefreshTasks.disabled = true;
+          btnRefreshGrids.disabled = true;
+          btnToggleGrids.disabled = true;
+          btnToggleTasks.disabled = true;
+          btnDrawStart.disabled = true;
+          btnDrawClear.disabled = true;
+          btnCreateGrid.disabled = true;
+          setConnStatus("未连接", "info");
+          setConfigView(null);
+          bindEvents();
+          initApiBase();
+          console.log('[DEBUG] API Base 设置为:', state.apiBase);
+          console.log('[DEBUG] 开始调用 reconnect()');
+          reconnect().catch(function (e) {
+            console.error('[DEBUG] reconnect() 失败:', e);
+            showToast(e.message || String(e), "error");
+          });
+        }
+
+        console.log('[DEBUG] 准备调用 boot()');
+        boot();
+      })();
+    </script>
+  </body>
+</html>

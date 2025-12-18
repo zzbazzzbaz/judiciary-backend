@@ -85,6 +85,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # collectstatic 收集目录
+STATICFILES_DIRS = [
+    BASE_DIR.parent / "admin-html",  # 添加 admin-html 目录到静态文件搜索路径
+]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

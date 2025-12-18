@@ -21,3 +21,11 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+    # 开发环境下提供 admin-html 静态文件访问
+    from django.views.static import serve
+    from pathlib import Path
+    admin_html_root = Path(settings.BASE_DIR).parent / "admin-html"
+    urlpatterns += [
+        path("admin-html/<path:path>", serve, {"document_root": admin_html_root}),
+    ]
