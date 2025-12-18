@@ -9,3 +9,14 @@ wheels/
 # Virtual environments
 .venv
 _chat
+
+# Node / Frontend
+node_modules/
+admin-front/dist/
+admin-front/.vite/
+admin-front/.env.local
+admin-front/.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

@@ -42,65 +42,11 @@
 
   <body class="bg-slate-50 text-slate-900">
     <div class="min-h-screen flex flex-col">
-      <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto w-full max-w-[1680px] px-4 py-3">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <div class="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                地图
-              </div>
-              <div>
-                <div class="text-base font-semibold">网格/任务地图可视化面板</div>
-                <div class="text-xs text-slate-500">腾讯地图 · Tailwind CSS · API: /api/v1/*</div>
-              </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="text-xs text-slate-600">
-                API Base
-                <input
-                  id="api-base"
-                  class="ml-2 w-[320px] rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
-                  placeholder="http://localhost:8000"
-                />
-              </label>
-              <button
-                id="btn-reconnect"
-                type="button"
-                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                重新初始化
-              </button>
-              <span id="conn-pill" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-                <span id="conn-dot" class="h-2 w-2 rounded-full bg-slate-400"></span>
-                <span id="conn-text">未连接</span>
-              </span>
-            </div>
-          </div>
-
-          <div id="file-origin-tip" class="mt-2 hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            当前页面可能以 <span class="font-mono">file://</span> 打开，浏览器可能拦截跨域请求（CORS）。
-            建议用后端同域方式访问该页面，或在本地起一个静态服务器并配置后端允许跨域。
-          </div>
-        </div>
-      </header>
-
       <main class="mx-auto w-full max-w-[1680px] flex-1 px-4 py-4">
         <div class="flex gap-4 items-stretch">
           <section class="flex-1 min-h-[720px] rounded-xl border border-slate-200 bg-white relative overflow-hidden shadow-sm">
             <div id="map" class="absolute inset-0"></div>
 
-            <div class="absolute top-3 left-3 z-10 w-[360px] max-w-[70vw] space-y-2">
-              <div class="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-sm backdrop-blur">
-                <div class="text-xs text-slate-600 leading-relaxed">
-                  - 网格围栏：<span class="font-mono">GET /api/v1/grids/</span><br />
-                  - 创建网格：<span class="font-mono">POST /api/v1/grids/create/</span><br />
-                  - 任务点：<span class="font-mono">POST /api/v1/tasks/map-points/</span><br />
-                  - 地图配置：<span class="font-mono">GET /api/v1/common/map-config/</span>
-                </div>
-              </div>
-              <div id="toast" class="hidden rounded-lg border px-3 py-2 text-sm shadow-sm"></div>
-            </div>
 
             <div class="absolute bottom-3 right-3 z-10 flex flex-wrap gap-2">
               <button
@@ -299,12 +245,6 @@
 
     <script>
       (function () {
-        var elApiBase = document.getElementById("api-base");
-        var elReconnect = document.getElementById("btn-reconnect");
-        var elConnText = document.getElementById("conn-text");
-        var elConnDot = document.getElementById("conn-dot");
-        var elFileOriginTip = document.getElementById("file-origin-tip");
-
         var elCfgZoom = document.getElementById("cfg-zoom");
         var elCfgCenter = document.getElementById("cfg-center");
         var elCfgKey = document.getElementById("cfg-key");
@@ -336,7 +276,7 @@
         var toastEl = document.getElementById("toast");
 
         var state = {
-          apiBase: "",
+          apiBase: "http://127.0.0.1:8000",
           mapConfig: null,
           tencentLoaded: false,
           map: null,
@@ -354,12 +294,6 @@
           drawingManager: null,
           draftPolygon: null
         };
-
-        function setConnStatus(text, tone) {
-          elConnText.textContent = text || "";
-          var color = tone === "ok" ? "bg-emerald-500" : tone === "error" ? "bg-red-500" : "bg-slate-400";
-          elConnDot.className = "h-2 w-2 rounded-full " + color;
-        }
 
         function showToast(text, tone) {
           if (!toastEl) return;
@@ -955,7 +889,6 @@
 
         async function loadConfigAndInitMap() {
           console.log('[DEBUG] loadConfigAndInitMap() 开始');
-          setConnStatus("连接中…", "info");
           showToast("", "");
 
           console.log('[DEBUG] 准备请求地图配置:', state.apiBase + "/api/v1/common/map-config/");
@@ -968,7 +901,6 @@
           await ensureTencentSdk(cfg && cfg.api_key);
           console.log('[DEBUG] 腾讯地图 SDK 加载成功');
           initMap();
-          setConnStatus("已连接", "ok");
           console.log('[DEBUG] 地图初始化完成');
         }
 
@@ -1094,15 +1026,11 @@
             createGrid().catch(function (e) { showToast(e.message || String(e), "error"); });
           });
 
-          elReconnect.addEventListener("click", function () {
-            reconnect().catch(function (e) { showToast(e.message || String(e), "error"); });
-          });
         }
 
         async function reconnect() {
           setUiDisabled(true);
           showToast("", "");
-          setConnStatus("连接中…", "info");
           clearDraftPolygon();
           destroyOverlays(state.gridPolygons);
           destroyOverlays(state.taskMarkers);
@@ -1132,29 +1060,9 @@
             }
             setUiDisabled(false);
           } catch (e) {
-            setConnStatus("连接失败", "error");
             setUiDisabled(false);
             throw e;
           }
-        }
-
-        function initApiBase() {
-          var defaultBase = "";
-          if (window.location && window.location.origin && window.location.origin !== "null") {
-            defaultBase = window.location.origin;
-          } else {
-            defaultBase = "http://localhost:8000";
-            if (elFileOriginTip) elFileOriginTip.classList.remove("hidden");
-          }
-          var stored = "";
-          try { stored = localStorage.getItem("judiciary.adminHtml.apiBase") || ""; } catch (e) {}
-          state.apiBase = (stored || defaultBase).replace(/\/+$/, "");
-          elApiBase.value = state.apiBase;
-
-          elApiBase.addEventListener("change", function () {
-            state.apiBase = (elApiBase.value || "").trim().replace(/\/+$/, "");
-            try { localStorage.setItem("judiciary.adminHtml.apiBase", state.apiBase); } catch (e) {}
-          });
         }
 
         function boot() {
@@ -1168,10 +1076,8 @@
           btnDrawStart.disabled = true;
           btnDrawClear.disabled = true;
           btnCreateGrid.disabled = true;
-          setConnStatus("未连接", "info");
           setConfigView(null);
           bindEvents();
-          initApiBase();
           console.log('[DEBUG] API Base 设置为:', state.apiBase);
           console.log('[DEBUG] 开始调用 reconnect()');
           reconnect().catch(function (e) {
