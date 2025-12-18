@@ -14,7 +14,7 @@ from utils.attachment_utils import get_attachments_by_ids, parse_attachment_ids
 from utils.code_generator import generate_task_code
 
 from apps.common.models import Attachment
-from apps.grids.models import Grid
+from apps.grids.models import Grid, MediatorAssignment
 from apps.users.models import User
 
 from .models import Task
@@ -149,14 +149,6 @@ def _validate_attachment_ids_exist(ids_str: str):
 class TaskCreateSerializer(serializers.ModelSerializer):
     """上报任务（调解员）。"""
 
-    grid_id = serializers.PrimaryKeyRelatedField(
-        source="grid",
-        queryset=Grid.objects.all(),
-        required=False,
-        allow_null=True,
-        write_only=True,
-    )
-
     class Meta:
         model = Task
         fields = [
@@ -166,7 +158,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             "party_phone",
             "party_address",
             "amount",
-            "grid_id",
             "report_lng",
             "report_lat",
             "report_address",
@@ -201,6 +192,12 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
         validated_data["reporter"] = reporter
         validated_data["status"] = Task.Status.REPORTED
+
+        # 根据上报人所属网格自动分配
+        assignment = MediatorAssignment.objects.filter(mediator=reporter).select_related("grid").first()
+        if not assignment:
+            raise serializers.ValidationError("您尚未分配到任何网格，无法上报任务")
+        validated_data["grid"] = assignment.grid
 
         # 生成任务编号
         task_type = validated_data["type"]
