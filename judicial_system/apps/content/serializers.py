@@ -21,10 +21,11 @@ class ContentAttachmentSerializer(serializers.ModelSerializer):
     """内容附件（file URL + 文件名）。"""
 
     file = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
 
     class Meta:
         model = ContentAttachment
-        fields = ["id", "file"]
+        fields = ["id", "file", "name"]
 
     def get_file(self, obj: ContentAttachment) -> str:
         """返回文件访问 URL（绝对路径）。"""
@@ -35,6 +36,15 @@ class ContentAttachmentSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.file.url)
             return obj.file.url
+        except Exception:
+            return ""
+
+    def get_name(self, obj: ContentAttachment) -> str:
+        """返回文件名。"""
+        if not obj.file:
+            return ""
+        try:
+            return obj.file.name.split("/")[-1]
         except Exception:
             return ""
 
@@ -58,9 +68,13 @@ class ArticleListSerializer(serializers.ModelSerializer):
         ]
 
     def get_cover_image(self, obj: Article) -> str:
+        """返回封面图片的绝对路径（http开头）。"""
         if not obj.cover_image:
             return ""
         try:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.cover_image.url)
             return obj.cover_image.url
         except Exception:
             return ""
@@ -99,17 +113,25 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_cover_image(self, obj: Article) -> str:
+        """返回封面图片的绝对路径（http开头）。"""
         if not obj.cover_image:
             return ""
         try:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.cover_image.url)
             return obj.cover_image.url
         except Exception:
             return ""
 
     def get_video(self, obj: Article) -> str:
+        """返回视频的绝对路径（http开头）。"""
         if not obj.video:
             return ""
         try:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.video.url)
             return obj.video.url
         except Exception:
             return ""
