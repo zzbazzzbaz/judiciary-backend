@@ -59,6 +59,9 @@ class TaskListSerializer(serializers.ModelSerializer):
             "assigned_mediator_name",
             "reported_at",
             "assigned_at",
+            "report_lng",
+            "report_lat",
+            "report_address",
         ]
 
 

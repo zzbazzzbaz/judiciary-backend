@@ -43,7 +43,8 @@ class DynamicSimpleUIMiddleware:
                         "name": "网格管理",
                         "icon": "fas fa-map-marked-alt",
                         "models": [
-                            {"name": "统计", "icon": "fas fa-chart-pie", "url": "/admin/grids/statistics/"},
+                            {"name": "地图", "icon": "fas fa-map", "url": "/admin-html/map-dashboard.html"},
+                            # {"name": "统计", "icon": "fas fa-chart-pie ", "url": " /admin/grids/statistics/"},
                             {"name": "网格", "icon": "fas fa-border-all", "url": "/admin/grids/grid/"},
                             {"name": "任务", "icon": "fas fa-tasks", "url": "/admin/cases/task/"},
                         ],

@@ -19,13 +19,12 @@ urlpatterns = [
     path("api/v1/", include("apps.grids.urls")),  # 网格接口
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-    # 开发环境下提供 admin-html 静态文件访问
-    from django.views.static import serve
-    from pathlib import Path
-    admin_html_root = Path(settings.BASE_DIR).parent / "admin-html"
-    urlpatterns += [
-        path("admin-html/<path:path>", serve, {"document_root": admin_html_root}),
-    ]
+from django.views.static import serve
+from pathlib import Path
+
+admin_html_root = Path(settings.BASE_DIR).parent / "admin-html"
+urlpatterns += [
+    path("admin-html/<path:path>", serve, {"document_root": admin_html_root}),
+]

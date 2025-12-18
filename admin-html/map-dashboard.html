@@ -125,19 +125,11 @@
                 <span id="task-count" class="shrink-0 text-xs text-slate-500">0</span>
               </div>
 
-              <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
-                  <span class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>reported
-                </span>
-                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
-                  <span class="h-2.5 w-2.5 rounded-full bg-indigo-600"></span>assigned
-                </span>
-                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
-                  <span class="h-2.5 w-2.5 rounded-full bg-amber-600"></span>processing
-                </span>
-                <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700">
-                  <span class="h-2.5 w-2.5 rounded-full bg-emerald-600"></span>completed
-                </span>
+              <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>已上报</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>已分配</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-violet-500"></span>处理中</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>已完成</span>
               </div>
 
               <ul id="task-list" class="mt-3 space-y-2 max-h-[240px] overflow-auto pr-1"></ul>
@@ -449,12 +441,15 @@
           }
         }
 
+        // 根据任务状态返回对应颜色配置
         function getTaskTone(status) {
-          var s = String(status || "");
-          if (s === "completed") return { name: "completed", color: "#059669", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700" };
-          if (s === "processing") return { name: "processing", color: "#d97706", bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700" };
-          if (s === "assigned") return { name: "assigned", color: "#4f46e5", bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700" };
-          return { name: "reported", color: "#64748b", bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700" };
+          var tones = {
+            reported: { color: "#f59e0b", label: "已上报", bg: "bg-amber-100", text: "text-amber-700" },
+            assigned: { color: "#3b82f6", label: "已分配", bg: "bg-blue-100", text: "text-blue-700" },
+            processing: { color: "#8b5cf6", label: "处理中", bg: "bg-violet-100", text: "text-violet-700" },
+            completed: { color: "#10b981", label: "已完成", bg: "bg-emerald-100", text: "text-emerald-700" }
+          };
+          return tones[status] || { color: "#6b7280", label: status || "-", bg: "bg-slate-100", text: "text-slate-700" };
         }
 
         function svgDotDataUri(fill) {
@@ -703,25 +698,15 @@
           taskEmptyEl.classList.add("hidden");
 
           tasks.forEach(function (task) {
-            var tone = getTaskTone(task.status);
             var li = document.createElement("li");
             li.className =
               "cursor-pointer rounded-lg border border-slate-200 bg-white p-2 hover:border-emerald-300 hover:bg-emerald-50";
             li.setAttribute("data-task-id", String(task.id));
+            var tone = getTaskTone(task.status);
             li.innerHTML =
-              "<div class='flex items-start justify-between gap-2'>" +
-              "<div class='font-semibold text-slate-900 truncate'>" +
-              escapeHtml(task.code || "") +
-              "</div>" +
-              "<span class='shrink-0 text-xs rounded-full border " +
-              tone.border +
-              " " +
-              tone.bg +
-              " px-2 py-0.5 " +
-              tone.text +
-              "'>" +
-              escapeHtml(tone.name) +
-              "</span>" +
+              "<div class='flex items-center gap-2'>" +
+              "<span class='font-semibold text-slate-900 truncate'>" + escapeHtml(task.code || "") + "</span>" +
+              "<span class='shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium " + tone.bg + " " + tone.text + "'>" + tone.label + "</span>" +
               "</div>" +
               "<div class='mt-1 text-xs text-slate-500 leading-relaxed'>" +
               "当事人：" +
