@@ -308,3 +308,48 @@ class TaskMapPointsView(APIView):
 
         serializer = TaskMapPointSerializer(tasks, many=True)
         return success_response(data=serializer.data)
+
+
+class GridTaskPointsView(APIView):
+    """
+    网格任务点查询接口（无需认证）
+
+    - GET /api/v1/tasks/grid-points/?grid_id=<id>
+    - 传入网格ID，返回该网格内上报人的事件位置
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """
+        查询参数：
+        - grid_id: 网格ID
+        """
+        from apps.grids.models import Grid, MediatorAssignment
+
+        grid_id = request.query_params.get("grid_id")
+        if not grid_id:
+            return error_response("缺少 grid_id 参数", http_status=400)
+
+        try:
+            grid = Grid.objects.get(id=grid_id, is_active=True)
+        except Grid.DoesNotExist:
+            return error_response("网格不存在或未启用", http_status=404)
+
+        # 获取该网格的所有成员ID（负责人 + 调解员）
+        reporter_ids = []
+        if grid.current_manager_id:
+            reporter_ids.append(grid.current_manager_id)
+
+        mediator_ids = MediatorAssignment.objects.filter(grid=grid).values_list("mediator_id", flat=True)
+        reporter_ids.extend(mediator_ids)
+
+        # 查询这些成员上报的任务（有位置信息的）
+        tasks = Task.objects.filter(
+            reporter_id__in=reporter_ids,
+            report_lng__isnull=False,
+            report_lat__isnull=False,
+        ).order_by("-reported_at")
+
+        serializer = TaskMapPointSerializer(tasks, many=True)
+        return success_response(data=serializer.data)
