@@ -257,99 +257,27 @@ class TaskViewSet(
 
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from .serializers import TaskMapPointSerializer
+from .serializers import TaskListSerializer
 
 
-class TaskMapPointsView(APIView):
+class GridTaskListView(APIView):
     """
-    地图区域任务点查询接口（无需认证）
+    网格任务列表接口（无需认证、不分页）
 
-    - POST /api/v1/tasks/map-points/
-    - 传入地图边界四个点，返回区域内的任务点
-    """
-
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        """
-        请求参数：
-        {
-            "points": [
-                {"lng": 116.1, "lat": 40.1},  # 左上角
-                {"lng": 116.1, "lat": 39.9},  # 左下角
-                {"lng": 116.5, "lat": 40.1},  # 右上角
-                {"lng": 116.5, "lat": 39.9}   # 右下角
-            ]
-        }
-        """
-        points = request.data.get("points", [])
-
-        if len(points) != 4:
-            return error_response("必须传入4个边界点", http_status=400)
-
-        # 提取所有点的经纬度，计算边界范围
-        lngs = [float(p.get("lng", 0)) for p in points]
-        lats = [float(p.get("lat", 0)) for p in points]
-
-        min_lng = min(lngs)
-        max_lng = max(lngs)
-        min_lat = min(lats)
-        max_lat = max(lats)
-
-        # 查询在边界范围内的任务（基于上报位置）
-        tasks = Task.objects.filter(
-            report_lng__gte=min_lng,
-            report_lng__lte=max_lng,
-            report_lat__gte=min_lat,
-            report_lat__lte=max_lat,
-            report_lng__isnull=False,
-            report_lat__isnull=False,
-        ).order_by("-reported_at")
-
-        serializer = TaskMapPointSerializer(tasks, many=True)
-        return success_response(data=serializer.data)
-
-
-class GridTaskPointsView(APIView):
-    """
-    网格任务点查询接口（无需认证）
-
-    - GET /api/v1/tasks/grid-points/?grid_id=<id>
-    - 传入网格ID，返回该网格内上报人的事件位置
+    - GET /api/v1/tasks/grid-tasks/?grid_id=<id>
     """
 
     permission_classes = [AllowAny]
 
     def get(self, request):
-        """
-        查询参数：
-        - grid_id: 网格ID
-        """
-        from apps.grids.models import Grid, MediatorAssignment
-
         grid_id = request.query_params.get("grid_id")
         if not grid_id:
             return error_response("缺少 grid_id 参数", http_status=400)
 
-        try:
-            grid = Grid.objects.get(id=grid_id, is_active=True)
-        except Grid.DoesNotExist:
-            return error_response("网格不存在或未启用", http_status=404)
-
-        # 获取该网格的所有成员ID（负责人 + 调解员）
-        reporter_ids = []
-        if grid.current_manager_id:
-            reporter_ids.append(grid.current_manager_id)
-
-        mediator_ids = MediatorAssignment.objects.filter(grid=grid).values_list("mediator_id", flat=True)
-        reporter_ids.extend(mediator_ids)
-
-        # 查询这些成员上报的任务（有位置信息的）
-        tasks = Task.objects.filter(
-            reporter_id__in=reporter_ids,
-            report_lng__isnull=False,
-            report_lat__isnull=False,
+        # 查询该网格下的所有任务
+        tasks = Task.objects.filter(grid_id=grid_id).select_related(
+            "grid", "reporter", "assigned_mediator"
         ).order_by("-reported_at")
 
-        serializer = TaskMapPointSerializer(tasks, many=True)
+        serializer = TaskListSerializer(tasks, many=True)
         return success_response(data=serializer.data)

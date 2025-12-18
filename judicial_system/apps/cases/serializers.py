@@ -231,22 +231,3 @@ class TaskCompleteSerializer(serializers.Serializer):
 
     def validate_complete_file_ids(self, value):
         return _validate_attachment_ids_exist(value or "")
-
-
-class TaskMapPointSerializer(serializers.ModelSerializer):
-    """任务地图点序列化器（用于地图展示）"""
-
-    class Meta:
-        model = Task
-        fields = [
-            "id",
-            "code",
-            "type",
-            "status",
-            "party_name",
-            "description",
-            "report_lng",
-            "report_lat",
-            "report_address",
-            "reported_at",
-        ]
