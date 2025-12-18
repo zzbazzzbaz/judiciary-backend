@@ -45,3 +45,11 @@ class GridWithPersonnelSerializer(serializers.ModelSerializer):
         assignments = obj.mediator_assignments.select_related("mediator").all()
         mediators = [assignment.mediator for assignment in assignments]
         return UserSimpleSerializer(mediators, many=True).data
+
+
+class GridCreateSerializer(serializers.ModelSerializer):
+    """网格创建序列化器"""
+
+    class Meta:
+        model = Grid
+        fields = ["name", "boundary"]
