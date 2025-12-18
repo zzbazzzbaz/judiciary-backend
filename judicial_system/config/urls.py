@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/v1/", include("apps.cases.urls")),
     path("api/v1/", include("apps.common.urls")),
     path("api/v1/", include("apps.content.urls")),
+    path("api/v1/", include("apps.grids.urls")),  # 网格接口
 ]
 
 if settings.DEBUG:
