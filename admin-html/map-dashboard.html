@@ -605,6 +605,19 @@
                   var b = new qq.maps.LatLngBounds();
                   for (var i = 0; i < path.getLength(); i++) b.extend(path.getAt(i));
                   state.map.fitBounds && state.map.fitBounds(b);
+                  // 显示气泡框
+                  var mgr = grid.current_manager && grid.current_manager.name ? grid.current_manager.name : "-";
+                  var mediators = Array.isArray(grid.mediators) ? grid.mediators.length : 0;
+                  var html =
+                    "<div style='min-width:220px;line-height:1.6;'>" +
+                    "<div style='font-weight:600;margin-bottom:6px;'>" + escapeHtml(grid.name || "") + "</div>" +
+                    "<div style='color:#666;font-size:12px;'>" +
+                    "所属区域：" + escapeHtml(grid.region || "-") + "<br>" +
+                    "负责人：" + escapeHtml(mgr) + "<br>" +
+                    "调解员数量：" + escapeHtml(mediators) + "</div></div>";
+                  state.infoWin.setContent(html);
+                  state.infoWin.setPosition(b.getCenter());
+                  state.infoWin.open();
                 } catch (e) {}
               }
             });
@@ -720,7 +733,19 @@
               var lat = toNumber(task && task.report_lat, NaN);
               if (isFinite(lng) && isFinite(lat) && state.map) {
                 try {
-                  state.map.panTo ? state.map.panTo(new qq.maps.LatLng(lat, lng)) : state.map.setCenter(new qq.maps.LatLng(lat, lng));
+                  var pos = new qq.maps.LatLng(lat, lng);
+                  state.map.panTo ? state.map.panTo(pos) : state.map.setCenter(pos);
+                  // 显示气泡框
+                  var html =
+                    "<div style='min-width:240px;line-height:1.6;'>" +
+                    "<div style='font-weight:600;margin-bottom:6px;'>" + escapeHtml(task.code || "") + "</div>" +
+                    "<div style='color:#666;font-size:12px;'>" +
+                    "状态：" + escapeHtml(task.status || "-") + "<br>" +
+                    "当事人：" + escapeHtml(task.party_name || "-") + "<br>" +
+                    "地址：" + escapeHtml(task.report_address || "-") + "</div></div>";
+                  state.infoWin.setContent(html);
+                  state.infoWin.setPosition(pos);
+                  state.infoWin.open();
                 } catch (e) {}
               }
             });
