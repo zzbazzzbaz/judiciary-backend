@@ -277,10 +277,6 @@
           return isFinite(n) ? n : fallback;
         }
 
-        function sleep(ms) {
-          return new Promise(function (resolve) { setTimeout(resolve, ms); });
-        }
-
         function escapeHtml(s) {
           return String(s == null ? "" : s)
             .replace(/&/g, "&amp;")
@@ -352,7 +348,8 @@
               throw new Error(msg);
             }
             if (json && typeof json === "object" && "code" in json) {
-              if (Number(json.code) !== 200) {
+              var code = Number(json.code);
+              if (code !== 200 && code !== 0) {
                 throw new Error(json.message || "请求失败");
               }
               return json.data;
@@ -640,21 +637,6 @@
           }
         }
 
-        function getBoundsPoints() {
-          if (!state.map || !state.map.getBounds) return null;
-          var b = state.map.getBounds();
-          if (!b || !b.getNorthEast || !b.getSouthWest) return null;
-          var ne = b.getNorthEast();
-          var sw = b.getSouthWest();
-          if (!ne || !sw) return null;
-          return [
-            { lng: sw.getLng(), lat: ne.getLat() }, // 左上
-            { lng: sw.getLng(), lat: sw.getLat() }, // 左下
-            { lng: ne.getLng(), lat: ne.getLat() }, // 右上
-            { lng: ne.getLng(), lat: sw.getLat() } // 右下
-          ];
-        }
-
         function renderTasks() {
           destroyOverlays(state.taskMarkers);
           state.taskMarkers = {};
@@ -867,20 +849,14 @@
           showToast("网格已刷新，共 " + state.grids.length + " 个。", "ok");
         }
 
-        async function refreshTasks() {
+        async function refreshTasks(gridId) {
           if (!state.map) throw new Error("地图未初始化");
-          var points = null;
-          for (var i = 0; i < 10; i++) {
-            points = getBoundsPoints();
-            if (points) break;
-            await sleep(200);
-          }
-          if (!points) throw new Error("无法获取地图边界，请稍后重试");
-          var data = await apiRequest("/api/v1/tasks/map-points/", { method: "POST", body: JSON.stringify({ points: points }) });
+          if (!gridId) throw new Error("请先选择一个网格");
+          var data = await apiRequest("/api/v1/tasks/grid-tasks/?grid_id=" + gridId);
           state.tasks = Array.isArray(data) ? data : [];
           renderTaskList();
           renderTasks();
-          showToast("任务点已刷新，共 " + state.tasks.length + " 个。", "ok");
+          showToast("任务已刷新，共 " + state.tasks.length + " 个。", "ok");
         }
 
         async function createGrid() {
@@ -939,7 +915,7 @@
           });
 
           btnRefreshTasks.addEventListener("click", function () {
-            refreshTasks().catch(function (e) { showToast(e.message || String(e), "error"); });
+            refreshTasks(state.gridSelectedId).catch(function (e) { showToast(e.message || String(e), "error"); });
           });
 
           btnToggleGrids.addEventListener("click", function () {
@@ -1009,11 +985,6 @@
           try {
             await loadConfigAndInitMap();
             await refreshGrids();
-            try {
-              await refreshTasks();
-            } catch (e) {
-              showToast("任务点加载失败：" + (e && e.message ? e.message : String(e)), "error");
-            }
             setUiDisabled(false);
           } catch (e) {
             setUiDisabled(false);

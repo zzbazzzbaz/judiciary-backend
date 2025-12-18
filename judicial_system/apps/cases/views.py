@@ -262,22 +262,21 @@ from .serializers import TaskListSerializer
 
 class GridTaskListView(APIView):
     """
-    网格任务列表接口（无需认证、不分页）
+    任务列表接口（无需认证、不分页）
 
-    - GET /api/v1/tasks/grid-tasks/?grid_id=<id>
+    - GET /api/v1/tasks/grid-tasks/          获取全部任务
+    - GET /api/v1/tasks/grid-tasks/?grid_id=<id>  获取指定网格的任务
     """
 
     permission_classes = [AllowAny]
 
     def get(self, request):
         grid_id = request.query_params.get("grid_id")
-        if not grid_id:
-            return error_response("缺少 grid_id 参数", http_status=400)
 
-        # 查询该网格下的所有任务
-        tasks = Task.objects.filter(grid_id=grid_id).select_related(
-            "grid", "reporter", "assigned_mediator"
-        ).order_by("-reported_at")
+        tasks = Task.objects.select_related("grid", "reporter", "assigned_mediator")
+        if grid_id:
+            tasks = tasks.filter(grid_id=grid_id)
+        tasks = tasks.order_by("-reported_at")
 
         serializer = TaskListSerializer(tasks, many=True)
         return success_response(data=serializer.data)
