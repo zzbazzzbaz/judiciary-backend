@@ -417,7 +417,7 @@
           setDrawingState(false);
         }
 
-        function setSelectedGrid(id) {
+        function setSelectedGrid(id, skipRefresh) {
           state.gridSelectedId = id ? String(id) : null;
           var items = gridListEl.querySelectorAll("[data-grid-id]");
           for (var i = 0; i < items.length; i++) {
@@ -427,6 +427,12 @@
             it.classList.toggle("bg-blue-50", !!match);
             it.classList.toggle("ring-1", !!match);
             it.classList.toggle("ring-blue-200", !!match);
+          }
+          // 选中网格后自动刷新任务
+          if (!skipRefresh) {
+            refreshTasks(state.gridSelectedId).catch(function (e) {
+              showToast(e.message || String(e), "error");
+            });
           }
         }
 
@@ -498,7 +504,7 @@
         function renderGrids() {
           destroyOverlays(state.gridPolygons);
           state.gridPolygons = {};
-          setSelectedGrid(null);
+          setSelectedGrid(null, true);
 
           if (!state.gridsVisible) return;
           if (!Array.isArray(state.grids) || state.grids.length === 0) return;
@@ -851,12 +857,13 @@
 
         async function refreshTasks(gridId) {
           if (!state.map) throw new Error("地图未初始化");
-          if (!gridId) throw new Error("请先选择一个网格");
-          var data = await apiRequest("/api/v1/tasks/grid-tasks/?grid_id=" + gridId);
+          var url = gridId ? "/api/v1/tasks/grid-tasks/?grid_id=" + gridId : "/api/v1/tasks/grid-tasks/";
+          var data = await apiRequest(url);
           state.tasks = Array.isArray(data) ? data : [];
           renderTaskList();
           renderTasks();
-          showToast("任务已刷新，共 " + state.tasks.length + " 个。", "ok");
+          var msg = gridId ? "该网格任务已刷新" : "全部任务已刷新";
+          showToast(msg + "，共 " + state.tasks.length + " 个。", "ok");
         }
 
         async function createGrid() {
@@ -985,6 +992,7 @@
           try {
             await loadConfigAndInitMap();
             await refreshGrids();
+            await refreshTasks(null);
             setUiDisabled(false);
           } catch (e) {
             setUiDisabled(false);
