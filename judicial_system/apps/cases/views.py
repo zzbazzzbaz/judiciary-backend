@@ -87,19 +87,13 @@ class TaskViewSet(
         raise PermissionDenied("无权查看此任务")
 
     def list(self, request, *args, **kwargs):
-        """任务列表（按角色返回可访问数据）。"""
+        """任务列表（只返回指派给当前用户的任务）。"""
 
         qs = self.get_queryset()
         user: User = request.user
 
-        if user.role == User.Role.ADMIN:
-            pass
-        elif user.role == User.Role.GRID_MANAGER:
-            qs = qs.filter(grid__current_manager=user)
-        elif user.role == User.Role.MEDIATOR:
-            qs = qs.filter(assigned_mediator=user)
-        else:
-            raise PermissionDenied("无权查看任务列表")
+        # 所有角色都只能查看指派给自己的任务
+        qs = qs.filter(assigned_mediator=user)
 
         params = request.query_params
         search = params.get("search")
