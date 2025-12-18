@@ -18,10 +18,35 @@ from config.admin_sites import admin_site, grid_manager_site
 from .models import Grid, MediatorAssignment
 
 
+from django import forms
+
+
+class MediatorAssignmentForm(forms.ModelForm):
+    """调解员分配表单，验证一个调解员只能属于一个网格。"""
+
+    class Meta:
+        model = MediatorAssignment
+        fields = "__all__"
+
+    def clean_mediator(self):
+        mediator = self.cleaned_data.get("mediator")
+        if not mediator:
+            return mediator
+        # 检查该调解员是否已分配到其他网格（排除当前记录）
+        qs = MediatorAssignment.objects.filter(mediator=mediator).select_related("grid")
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        existing = qs.first()
+        if existing:
+            raise forms.ValidationError(f"该调解员已分配到网格「{existing.grid.name}」，一个调解员只能属于一个网格")
+        return mediator
+
+
 class MediatorAssignmentInline(admin.TabularInline):
     """在网格详情页内进行调解员分配。"""
 
     model = MediatorAssignment
+    form = MediatorAssignmentForm
     extra = 0
     autocomplete_fields = ("mediator",)
     fields = ("mediator", "created_at")

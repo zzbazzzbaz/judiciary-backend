@@ -72,7 +72,8 @@ class MediatorAssignment(models.Model):
         verbose_name = "调解员分配"
         verbose_name_plural = verbose_name
         constraints = [
+            # 一个调解员只能属于一个网格
             models.UniqueConstraint(
-                fields=["grid", "mediator"], name="uniq_grids_assignment_grid_mediator"
+                fields=["mediator"], name="uniq_grids_assignment_mediator"
             )
         ]
