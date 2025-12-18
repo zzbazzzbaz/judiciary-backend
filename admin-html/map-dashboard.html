@@ -103,12 +103,8 @@
 
             <!-- Tab 面板：创建网格 -->
             <div id="tab-create" class="tab-panel flex-1 p-4 overflow-auto hidden">
-              <p class="text-xs text-slate-500 mb-3">绘制围栏后调用 /api/v1/grids/create/</p>
               <div class="grid gap-3">
-                <label class="text-xs text-slate-600">
-                  网格名称
-                  <input id="create-grid-name" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300" placeholder="例如：朝阳网格" />
-                </label>
+                <input id="create-grid-name" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300" placeholder="网格名称，例如：朝阳网格" />
                 <div class="flex flex-wrap gap-2">
                   <button id="btn-draw-start" type="button" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed">开始绘制</button>
                   <button id="btn-draw-clear" type="button" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>清除</button>
