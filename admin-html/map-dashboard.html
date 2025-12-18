@@ -397,6 +397,16 @@
           });
         }
 
+        // 统一控制绘制状态
+        function setDrawingState(isDrawing) {
+          state.isDrawing = isDrawing;
+          btnDrawStart.textContent = isDrawing ? "取消绘制" : "开始绘制";
+          if (!isDrawing && state.drawingManager) {
+            state.drawingManager.setDrawingMode(null);
+            state.drawingManager.close && state.drawingManager.close();
+          }
+        }
+
         function clearDraftPolygon() {
           if (state.draftPolygon) {
             try {
@@ -407,6 +417,7 @@
           createBoundaryEl.value = "";
           btnDrawClear.disabled = true;
           btnCreateGrid.disabled = true;
+          setDrawingState(false);
         }
 
         function setSelectedGrid(id) {
@@ -801,7 +812,7 @@
             btnDrawClear.disabled = false;
             btnCreateGrid.disabled = !((createNameEl.value || "").trim());
             showToast("绘制完成：可拖拽顶点调整，确认后点击「创建网格」。", "ok");
-            if (state.drawingManager && state.drawingManager.close) state.drawingManager.close();
+            setDrawingState(false);
           });
           return state.drawingManager;
         }
@@ -948,9 +959,15 @@
           btnDrawStart.addEventListener("click", function () {
             try {
               var dm = ensureDrawingManager();
-              dm.setDrawingMode(qq.maps.drawing.OverlayType.POLYGON);
-              dm.open && dm.open();
-              showToast("正在绘制：点击多个点，双击结束。", "info");
+              if (state.isDrawing) {
+                setDrawingState(false);
+                showToast("已取消绘制。", "info");
+              } else {
+                dm.setDrawingMode(qq.maps.drawing.OverlayType.POLYGON);
+                dm.open && dm.open();
+                setDrawingState(true);
+                showToast("正在绘制：点击多个点，双击结束。", "info");
+              }
             } catch (e) {
               showToast(e.message || String(e), "error");
             }
