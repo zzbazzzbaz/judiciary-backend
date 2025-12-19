@@ -16,7 +16,6 @@ from utils.file_utils import (
     MAX_FILE_SIZE,
     get_file_extension,
     get_file_type,
-    generate_upload_path,
     validate_file_extension,
     validate_file_size,
 )
@@ -56,13 +55,8 @@ class UploadView(APIView):
         file_type = get_file_type(extension)
 
         # 4) 保存文件并创建附件记录
-        #    这里手动生成上传路径，避免原始文件名冲突并满足「随机文件名」要求。
-        upload_path = generate_upload_path(uploaded_file.name)
-        from django.core.files.storage import default_storage
-
-        saved_path = default_storage.save(upload_path, uploaded_file)
         attachment = Attachment.objects.create(
-            file=saved_path,
+            file=uploaded_file,
             file_type=file_type,
             file_size=uploaded_file.size,
             original_name=uploaded_file.name,

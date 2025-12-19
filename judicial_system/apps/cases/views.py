@@ -1,7 +1,5 @@
 """Cases 子应用 API（任务管理与流转）。"""
 
-from __future__ import annotations
-
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -143,7 +141,7 @@ class TaskViewSet(
     def retrieve(self, request, *args, **kwargs):
         task = self.get_object()
         self._check_task_permission(request.user, task)
-        return success_response(data=TaskDetailSerializer(task).data)
+        return success_response(data=TaskDetailSerializer(task, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="process")
     def process(self, request, pk=None):

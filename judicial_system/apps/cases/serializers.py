@@ -120,7 +120,14 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 
     def _attachments(self, ids_str: str):
         files = get_attachments_by_ids(ids_str)
-        return [{"id": f.get("id"), "file": f.get("file"), "original_name": f.get("original_name")} for f in files]
+        request = self.context.get("request")
+        result = []
+        for f in files:
+            file_url = f.get("file", "")
+            if file_url and request:
+                file_url = request.build_absolute_uri(file_url)
+            result.append({"id": f.get("id"), "file": file_url, "original_name": f.get("original_name")})
+        return result
 
     def get_report_images(self, obj: Task):
         return self._attachments(obj.report_image_ids)
