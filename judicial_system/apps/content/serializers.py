@@ -13,6 +13,7 @@ import re
 from rest_framework import serializers
 
 from apps.users.models import User
+from utils.url_utils import get_absolute_url
 
 from .models import Activity, Article, Category, ContentAttachment, Document
 
@@ -32,10 +33,7 @@ class ContentAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return ""
         try:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url
+            return get_absolute_url(obj.file.url)
         except Exception:
             return ""
 
@@ -72,10 +70,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         if not obj.cover_image:
             return ""
         try:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.cover_image.url)
-            return obj.cover_image.url
+            return get_absolute_url(obj.cover_image.url)
         except Exception:
             return ""
 
@@ -117,10 +112,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         if not obj.cover_image:
             return ""
         try:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.cover_image.url)
-            return obj.cover_image.url
+            return get_absolute_url(obj.cover_image.url)
         except Exception:
             return ""
 
@@ -129,10 +121,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         if not obj.video:
             return ""
         try:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.video.url)
-            return obj.video.url
+            return get_absolute_url(obj.video.url)
         except Exception:
             return ""
 
@@ -140,15 +129,12 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         """将富文本中的相对路径转换为绝对 URL。"""
         if not obj.content:
             return ""
-        request = self.context.get("request")
-        if request:
-            content = re.sub(
-                r'src="(/media/[^"]+)"',
-                lambda m: f'src="{request.build_absolute_uri(m.group(1))}"',
-                obj.content,
-            )
-            return content
-        return obj.content
+        content = re.sub(
+            r'src="(/media/[^"]+)"',
+            lambda m: f'src="{get_absolute_url(m.group(1))}"',
+            obj.content,
+        )
+        return content
 
 
 class UserSimpleSerializer(serializers.ModelSerializer):
@@ -206,16 +192,13 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
         """将富文本中的相对路径转换为绝对 URL。"""
         if not obj.content:
             return ""
-        request = self.context.get("request")
-        if request:
-            # 替换 src="/media/..." 为完整 URL
-            content = re.sub(
-                r'src="(/media/[^"]+)"',
-                lambda m: f'src="{request.build_absolute_uri(m.group(1))}"',
-                obj.content,
-            )
-            return content
-        return obj.content
+        # 替换 src="/media/..." 为完整 URL
+        content = re.sub(
+            r'src="(/media/[^"]+)"',
+            lambda m: f'src="{get_absolute_url(m.group(1))}"',
+            obj.content,
+        )
+        return content
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -240,9 +223,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return ""
         try:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url
+            return get_absolute_url(obj.file.url)
         except Exception:
             return ""

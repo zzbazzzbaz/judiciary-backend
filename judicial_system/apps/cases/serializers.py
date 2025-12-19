@@ -11,6 +11,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from utils.attachment_utils import get_attachments_by_ids, parse_attachment_ids
+from utils.url_utils import get_absolute_url
 from utils.code_generator import generate_task_code
 
 from apps.common.models import Attachment
@@ -120,12 +121,11 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 
     def _attachments(self, ids_str: str):
         files = get_attachments_by_ids(ids_str)
-        request = self.context.get("request")
         result = []
         for f in files:
             file_url = f.get("file", "")
-            if file_url and request:
-                file_url = request.build_absolute_uri(file_url)
+            if file_url:
+                file_url = get_absolute_url(file_url)
             result.append({"id": f.get("id"), "file": file_url, "original_name": f.get("original_name")})
         return result
 

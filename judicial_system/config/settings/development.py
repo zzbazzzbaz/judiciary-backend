@@ -168,3 +168,6 @@ REST_FRAMEWORK = {
 
 # 忽略 CKEditor 安全警告
 SILENCED_SYSTEM_CHECKS = ["ckeditor.W001"]
+
+# 后端基础 URL（用于生成文件绝对路径，适配反向代理场景）
+BACKEND_BASE_URL = "https://8001.frp.chatgqt.top"

@@ -9,6 +9,8 @@ Common 子应用序列化器
 
 from rest_framework import serializers
 
+from utils.url_utils import get_absolute_url
+
 from .models import Attachment, MapConfig
 
 
@@ -27,10 +29,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return ""
         try:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url
+            return get_absolute_url(obj.file.url)
         except Exception:
             # 文件可能不存在或存储异常时，避免接口直接 500
             return ""

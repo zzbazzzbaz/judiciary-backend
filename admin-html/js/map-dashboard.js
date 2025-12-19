@@ -25,7 +25,7 @@
         var toastEl = document.getElementById("toast");
 
         var state = {
-          apiBase: "http://127.0.0.1:8000",
+          apiBase: (window.AppConfig && window.AppConfig.apiBase) || "http://127.0.0.1:8000",
           mapConfig: null,
           tencentLoaded: false,
           map: null,
