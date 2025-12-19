@@ -11,13 +11,14 @@ from rest_framework.permissions import AllowAny
 
 from utils.responses import error_response, success_response
 
-from .models import Activity, Article, Category
+from .models import Activity, Article, Category, Document
 from .serializers import (
     ActivityDetailSerializer,
     ActivityListSerializer,
     ArticleDetailSerializer,
     ArticleListSerializer,
     CategorySerializer,
+    DocumentSerializer,
 )
 
 
@@ -159,3 +160,19 @@ class CategoryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
         return success_response(data=self.get_serializer(qs, many=True).data)
+
+
+class DocumentViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    文档资料接口：
+    - GET /api/v1/documents/
+    """
+
+    queryset = Document.objects.all().order_by("-created_at", "-id")
+    serializer_class = DocumentSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        return success_response(data=self.get_serializer(qs, many=True, context={"request": request}).data)

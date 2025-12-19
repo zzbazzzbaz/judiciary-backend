@@ -14,7 +14,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 
-from .models import Activity, Article, Category, ContentAttachment
+from .models import Activity, Article, Category, ContentAttachment, Document
 
 
 class ContentAttachmentSerializer(serializers.ModelSerializer):
@@ -224,3 +224,25 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name", "sort_order", "created_at"]
+
+
+class DocumentSerializer(serializers.ModelSerializer):
+    """文档资料序列化器。"""
+
+    file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = ["id", "name", "file", "created_at"]
+
+    def get_file(self, obj: Document) -> str:
+        """返回文件访问 URL（绝对路径）。"""
+        if not obj.file:
+            return ""
+        try:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        except Exception:
+            return ""

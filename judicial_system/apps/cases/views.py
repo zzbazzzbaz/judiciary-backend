@@ -252,6 +252,22 @@ class TaskViewSet(
         serializer = TaskListSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
+    @action(detail=False, methods=["get"], url_path="stats")
+    def stats(self, request):
+        """获取当前用户的任务统计（已上报/已分配/进行中/已完成数量）。"""
+
+        user = request.user
+        base_qs = Task.objects.filter(assigned_mediator=user)
+
+        return success_response(
+            data={
+                "reported": base_qs.filter(status=Task.Status.REPORTED).count(),
+                "assigned": base_qs.filter(status=Task.Status.ASSIGNED).count(),
+                "processing": base_qs.filter(status=Task.Status.PROCESSING).count(),
+                "completed": base_qs.filter(status=Task.Status.COMPLETED).count(),
+            }
+        )
+
 
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
