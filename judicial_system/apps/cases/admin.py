@@ -195,8 +195,9 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
         """查看详情按钮。"""
         from django.utils.html import format_html
         return format_html(
-            '<a class="el-button el-button--info el-button--small" '
-            'href="{}"><i class="el-icon-view"></i> 详情</a>',
+            '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
+            'border-radius:4px;text-decoration:none;font-size:12px;" '
+            'href="{}">详情</a>',
             f"/grid-admin/cases/task/{obj.pk}/detail/"
         )
     view_detail_action.short_description = "操作"
