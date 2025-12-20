@@ -12,7 +12,6 @@ from django.forms import Textarea
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
 
 from .models import Grid
@@ -26,13 +25,11 @@ class GridAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "region")
     ordering = ("-id",)
 
-    autocomplete_fields = ("current_manager",)
-
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("current_manager", "created_at", "updated_at")
     fieldsets = (
         ("基本信息", {"fields": ("name", "region", "description", "is_active")}),
         ("边界与中心点", {"fields": ("boundary", ("center_lng", "center_lat"))}),
-        ("负责人指派", {"fields": ("current_manager",)}),
+        ("负责人", {"fields": ("current_manager",)}),
         ("时间", {"fields": ("created_at", "updated_at")}),
     )
 
@@ -103,12 +100,6 @@ class GridAdmin(admin.ModelAdmin):
     @admin.display(description="调解员数量", ordering="_mediator_count")
     def mediator_count(self, obj: Grid) -> int:
         return getattr(obj, "_mediator_count", 0)
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "current_manager":
-            kwargs["queryset"] = User.objects.filter(role=User.Role.GRID_MANAGER, is_active=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
 
 # 注册到管理员后台
 admin_site.register(Grid, GridAdmin)
