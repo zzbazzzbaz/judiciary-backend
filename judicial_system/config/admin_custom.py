@@ -99,7 +99,7 @@ def _make_grids_statistics_view(site):
 
             qs = (
                 Grid.objects.select_related("current_manager")
-                .annotate(_mediator_count=Count("mediator_assignments", distinct=True))
+                .annotate(_mediator_count=Count("members", distinct=True))
                 .order_by("id")
             )
             grids = list(qs)

@@ -182,3 +182,12 @@ class Task(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover
         return self.code
+
+
+class UnassignedTask(Task):
+    """未分配任务代理模型（用于网格管理员端未分配任务列表）。"""
+
+    class Meta:
+        proxy = True
+        verbose_name = "待分配任务"
+        verbose_name_plural = verbose_name

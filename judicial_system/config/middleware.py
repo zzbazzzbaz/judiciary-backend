@@ -19,9 +19,8 @@ class DynamicSimpleUIMiddleware:
                         "name": "网格管理",
                         "icon": "fas fa-map-marked-alt",
                         "models": [
-                            {"name": "统计", "icon": "fas fa-chart-pie", "url": "/grid-admin/grids/statistics/"},
-                            {"name": "网格", "icon": "fas fa-border-all", "url": "/grid-admin/grids/grid/"},
-                            {"name": "任务", "icon": "fas fa-tasks", "url": "/grid-admin/cases/task/"},
+                            {"name": "待分配任务", "icon": "fas fa-clipboard-list", "url": "/grid-admin/cases/unassignedtask/"},
+                            {"name": "所有任务", "icon": "fas fa-tasks", "url": "/grid-admin/cases/task/"},
                         ],
                     },
                     {

@@ -12,7 +12,7 @@ from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
 from utils.code_generator import generate_task_code
 
-from .models import Task
+from .models import Task, UnassignedTask
 
 
 class TaskAdminForm(forms.ModelForm):
@@ -157,5 +157,223 @@ class TaskAdmin(admin.ModelAdmin):
 # 注册到管理员后台
 admin_site.register(Task, TaskAdmin)
 
+# ==================== 网格管理员专用 Admin ====================
+
+class GridManagerTaskAdmin(admin.ModelAdmin):
+    """
+    网格管理员端 - 所有任务列表。
+
+    功能：
+    - 查看本网格所有任务
+    - 点击查看任务详情（自定义页面）
+    """
+
+    list_display = (
+        "id",
+        "code",
+        "type",
+        "status",
+        "party_name",
+        "reporter",
+        "assigned_mediator",
+        "reported_at",
+        "view_detail_action",
+    )
+    list_select_related = ("grid", "reporter", "assigned_mediator")
+    search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
+    list_filter = ("type", "status", "reported_at")
+    date_hierarchy = "reported_at"
+    ordering = ("-reported_at", "-id")
+
+    def get_queryset(self, request):
+        """只显示本网格的任务。"""
+        queryset = super().get_queryset(request)
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        return queryset.filter(grid__in=managed_grids)
+
+    def view_detail_action(self, obj):
+        """查看详情按钮。"""
+        from django.utils.html import format_html
+        return format_html(
+            '<a class="el-button el-button--info el-button--small" '
+            'href="{}"><i class="el-icon-view"></i> 详情</a>',
+            f"/grid-admin/cases/task/{obj.pk}/detail/"
+        )
+    view_detail_action.short_description = "操作"
+    view_detail_action.allow_tags = True
+
+    def has_add_permission(self, request):
+        """网格管理员不能新增任务（任务由调解员上报）。"""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """网格管理员不能编辑任务（只能查看）。"""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """网格管理员不能删除任务。"""
+        return False
+
+    def get_urls(self):
+        """添加自定义详情页 URL。"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:task_id>/detail/",
+                self.admin_site.admin_view(self.detail_view),
+                name="task_detail",
+            ),
+        ]
+        return custom_urls + urls
+
+    def detail_view(self, request, task_id):
+        """任务详情视图。"""
+        from django.shortcuts import get_object_or_404, render
+        from django.contrib import messages
+
+        task = get_object_or_404(
+            Task.objects.select_related("grid", "reporter", "assigned_mediator", "assigner"),
+            pk=task_id
+        )
+
+        # 检查权限：任务必须属于当前管理员管理的网格
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        if task.grid not in managed_grids:
+            messages.error(request, "您没有权限查看此任务")
+            from django.shortcuts import redirect
+            return redirect("grid_admin:cases_task_changelist")
+
+        context = {
+            "title": f"任务详情: {task.code}",
+            "task": task,
+            "opts": self.model._meta,
+            "has_view_permission": True,
+        }
+        return render(request, "admin/cases/task/detail.html", context)
+
+
+class AssignMediatorForm(forms.Form):
+    """分配调解员表单。"""
+    mediator = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        label="选择调解员",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    def __init__(self, *args, grid=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if grid:
+            self.fields["mediator"].queryset = User.objects.filter(
+                role=User.Role.MEDIATOR, is_active=True, grid=grid
+            )
+
+
+class GridManagerUnassignedTaskAdmin(admin.ModelAdmin):
+    """
+    网格管理员端 - 未分配任务列表。
+
+    功能：
+    - 查看本网格未分配的任务（状态为 reported）
+    - 点击分配按钮分配给本网格调解员
+    """
+
+    list_display = (
+        "id",
+        "code",
+        "type",
+        "party_name",
+        "reporter",
+        "reported_at",
+        "action_buttons",
+    )
+    list_select_related = ("grid", "reporter")
+    search_fields = ("code", "party_name", "party_phone", "reporter__name")
+    list_filter = ("type", "reported_at")
+    date_hierarchy = "reported_at"
+    ordering = ("-reported_at", "-id")
+
+    def get_queryset(self, request):
+        """只显示本网格未分配的任务。"""
+        queryset = super().get_queryset(request)
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        return queryset.filter(grid__in=managed_grids, status=Task.Status.REPORTED)
+
+    def assign_action(self, obj):
+        """分配操作按钮。"""
+        from django.utils.html import format_html
+        return format_html(
+            '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
+            'border-radius:4px;text-decoration:none;font-size:12px;" '
+            'href="{}">分配</a>',
+            f"/grid-admin/cases/unassignedtask/{obj.pk}/assign/"
+        )
+    assign_action.short_description = "操作"
+    assign_action.allow_tags = True
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_urls(self):
+        """添加自定义分配页面 URL。"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:task_id>/assign/",
+                self.admin_site.admin_view(self.assign_view),
+                name="unassignedtask_assign",
+            ),
+        ]
+        return custom_urls + urls
+
+    def assign_view(self, request, task_id):
+        """分配任务视图。"""
+        from django.shortcuts import get_object_or_404, redirect, render
+        from django.contrib import messages
+
+        task = get_object_or_404(Task, pk=task_id)
+
+        # 检查权限：任务必须属于当前管理员管理的网格
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        if task.grid not in managed_grids:
+            messages.error(request, "您没有权限分配此任务")
+            return redirect("grid_admin:cases_unassignedtask_changelist")
+
+        if task.status != Task.Status.REPORTED:
+            messages.error(request, "此任务已被分配")
+            return redirect("grid_admin:cases_unassignedtask_changelist")
+
+        if request.method == "POST":
+            form = AssignMediatorForm(request.POST, grid=task.grid)
+            if form.is_valid():
+                mediator = form.cleaned_data["mediator"]
+                task.assigned_mediator = mediator
+                task.assigner = request.user
+                task.assigned_at = timezone.now()
+                task.status = Task.Status.ASSIGNED
+                task.save(update_fields=["assigned_mediator", "assigner", "assigned_at", "status", "updated_at"])
+                messages.success(request, f"任务 {task.code} 已分配给 {mediator.name}")
+                return redirect("grid_admin:cases_unassignedtask_changelist")
+        else:
+            form = AssignMediatorForm(grid=task.grid)
+
+        context = {
+            "title": f"分配任务: {task.code}",
+            "task": task,
+            "form": form,
+            "opts": self.model._meta,
+            "has_view_permission": True,
+        }
+        return render(request, "admin/cases/unassignedtask/assign.html", context)
+
+
 # 注册到网格负责人后台
-grid_manager_site.register(Task, TaskAdmin)
+grid_manager_site.register(Task, GridManagerTaskAdmin)
+grid_manager_site.register(UnassignedTask, GridManagerUnassignedTaskAdmin)
