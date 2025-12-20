@@ -20,7 +20,7 @@ class GridViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = (
         Grid.objects.filter(is_active=True)
         .select_related("current_manager")
-        .prefetch_related("mediator_assignments__mediator")
+        .prefetch_related("members")
         .order_by("id")
     )
     serializer_class = GridWithPersonnelSerializer
