@@ -138,7 +138,7 @@ class User(AbstractBaseUser):
         verbose_name_plural = verbose_name
 
     def __str__(self) -> str:  # pragma: no cover
-        return f"{self.username}({self.name})"
+        return f"{self.name} ({self.username} - {self.get_role_display()})"
 
     @property
     def is_staff(self) -> bool:
@@ -230,3 +230,6 @@ class UserAttachment(models.Model):
         db_table = "users_attachment"
         verbose_name = "附件"
         verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.file.name.split("/")[-1]

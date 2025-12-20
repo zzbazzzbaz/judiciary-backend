@@ -89,7 +89,7 @@ class Activity(models.Model):
 
 
 class ContentAttachment(models.Model):
-    file = models.FileField("文件", max_length=255, upload_to="users/%Y/%m/")
+    file = models.FileField("文件", max_length=255, upload_to="content/%Y/%m/")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
 
     class Meta:
@@ -113,3 +113,6 @@ class Document(models.Model):
         db_table = "content_document"
         verbose_name = "文档资料"
         verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.file.name.split("/")[-1]

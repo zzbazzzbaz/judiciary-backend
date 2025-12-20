@@ -130,10 +130,11 @@ class UserAdmin(BaseUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
 
-    list_display = ("id", "username", "name", "role", "organization", "phone", "is_active", "last_login")
-    list_filter = ("role", "is_active", "organization")
+    list_display = ("id", "username", "name", "role", "grid", "organization", "phone", "is_active", "last_login")
+    list_filter = ("role", "is_active", "organization", "grid")
     search_fields = ("username", "name", "phone", "id_card")
     ordering = ("-id",)
+    autocomplete_fields = ("grid",)
 
     readonly_fields = ("last_login", "created_at", "updated_at")
 
@@ -214,25 +215,11 @@ class UserAdmin(BaseUserAdmin):
         限制网格下拉列表的可选项。
 
         说明：
-        - 网格管理员：只显示未分配网格管理员的网格（或当前用户已分配的网格）
-        - 调解员：显示所有启用的网格
+        - 显示所有启用的网格
+        - 网格管理员的唯一性检查在表单验证中进行
         """
         if db_field.name == "grid":
-            # 获取当前编辑的用户对象
-            obj_id = request.resolver_match.kwargs.get("object_id")
-            current_user_grid_id = None
-            if obj_id:
-                try:
-                    current_user = User.objects.get(pk=obj_id)
-                    current_user_grid_id = current_user.grid_id
-                except User.DoesNotExist:
-                    pass
-            # 显示未分配网格管理员的网格，或当前用户已分配的网格
-            from django.db.models import Q
-            kwargs["queryset"] = Grid.objects.filter(
-                Q(current_manager__isnull=True) | Q(id=current_user_grid_id),
-                is_active=True
-            )
+            kwargs["queryset"] = Grid.objects.filter(is_active=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
