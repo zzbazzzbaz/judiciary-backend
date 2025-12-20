@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from apps.grids.models import Grid
 from config.admin_sites import admin_site, grid_manager_site
-from .models import Organization, PerformanceScore, TrainingRecord, User, UserAttachment
+from .models import Organization, PerformanceHistory, PerformanceScore, TrainingRecord, User, UserAttachment
 
 
 class UserCreationForm(forms.ModelForm):
@@ -356,6 +356,272 @@ admin_site.register(Organization, OrganizationAdmin)
 admin_site.register(TrainingRecord, TrainingRecordAdmin)
 admin_site.register(PerformanceScore, PerformanceScoreAdmin)
 
+# ==================== 网格管理员专用 Admin ====================
+
+class GridManagerMediatorCreationForm(forms.ModelForm):
+    """
+    网格管理员新增调解员表单。
+
+    说明：
+    - 网格字段由系统自动设置为当前登录网格管理员管理的网格
+    - 角色固定为调解员
+    """
+
+    password1 = forms.CharField(label="密码", widget=forms.PasswordInput)
+    password2 = forms.CharField(label="确认密码", widget=forms.PasswordInput)
+
+    class Meta:
+        model = User
+        fields = ("username", "name", "organization", "is_active", "gender", "id_card", "phone")
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("两次输入的密码不一致")
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        user.role = User.Role.MEDIATOR  # 强制设置为调解员
+        if commit:
+            user.save()
+        return user
+
+
+class GridManagerMediatorChangeForm(forms.ModelForm):
+    """
+    网格管理员编辑调解员表单。
+
+    说明：
+    - 密码字段使用只读哈希展示
+    - 网格和角色字段只读
+    """
+
+    password = ReadOnlyPasswordHashField(label="密码", help_text="密码已加密存储，无法查看明文。")
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "password",
+            "name",
+            "gender",
+            "id_card",
+            "phone",
+            "organization",
+            "is_active",
+        )
+
+    def clean_password(self):
+        return self.initial.get("password")
+
+
+class GridManagerUserAdmin(BaseUserAdmin):
+    """
+    网格管理员端 - 调解员管理。
+
+    功能：
+    - 查看本网格调解员列表
+    - 新增调解员（自动设置为当前管理员管理的网格）
+    - 编辑调解员信息
+    """
+
+    form = GridManagerMediatorChangeForm
+    add_form = GridManagerMediatorCreationForm
+
+    list_display = ("id", "username", "name", "phone", "organization", "is_active", "last_login")
+    list_filter = ("is_active", "organization")
+    search_fields = ("username", "name", "phone", "id_card")
+    ordering = ("-id",)
+
+    readonly_fields = ("last_login", "created_at", "updated_at", "role", "grid")
+
+    fieldsets = (
+        ("账号信息", {"fields": ("username", "password")}),
+        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization")}),
+        ("网格信息", {"fields": ("role", "grid")}),
+        ("状态", {"fields": ("is_active",)}),
+        ("时间", {"fields": ("last_login", "created_at", "updated_at")}),
+    )
+
+    add_fieldsets = (
+        (
+            "新增调解员",
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "username",
+                    "name",
+                    "organization",
+                    "is_active",
+                    "gender",
+                    "id_card",
+                    "phone",
+                    "password1",
+                    "password2",
+                ),
+            },
+        ),
+    )
+
+    filter_horizontal = ()
+
+    def get_queryset(self, request):
+        """只显示当前网格管理员管理的网格下的调解员。"""
+        queryset = super().get_queryset(request)
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        return queryset.filter(grid__in=managed_grids, role=User.Role.MEDIATOR)
+
+    def save_model(self, request, obj, form, change):
+        """
+        保存时自动设置网格和角色。
+
+        说明：
+        - 新增调解员时自动设置为当前管理员管理的网格
+        - 角色固定为调解员
+        """
+        if not change:  # 新增
+            obj.role = User.Role.MEDIATOR
+            # 获取当前管理员管理的网格
+            managed_grid = Grid.objects.filter(current_manager=request.user, is_active=True).first()
+            if managed_grid:
+                obj.grid = managed_grid
+        super().save_model(request, obj, form, change)
+
+    def has_delete_permission(self, request, obj=None):
+        """网格管理员不能删除调解员，只能禁用。"""
+        return False
+
+
+class GridManagerPerformanceScoreForm(forms.ModelForm):
+    """网格管理员绩效打分表单，添加唯一性校验。"""
+
+    class Meta:
+        model = PerformanceScore
+        fields = ("mediator", "score", "comment")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        mediator = cleaned_data.get("mediator")
+        if mediator:
+            current_period = timezone.now().strftime("%Y-%m")
+            # 检查本月是否已有该调解员的绩效记录
+            exists = PerformanceScore.objects.filter(
+                mediator=mediator, period=current_period
+            ).exists()
+            if exists:
+                raise forms.ValidationError(
+                    f"调解员「{mediator.name}」本月（{current_period}）已有绩效记录，请勿重复打分。"
+                )
+        return cleaned_data
+
+
+class GridManagerPerformanceScoreAdmin(admin.ModelAdmin):
+    """
+    网格管理员端 - 绩效打分。
+
+    功能：
+    - 对本月网格下调解员进行打分
+    - 只能打分本网格的调解员
+    - 考核周期由系统自动设置为本月
+    """
+
+    form = GridManagerPerformanceScoreForm
+    list_display = ("id", "mediator", "score", "period", "created_at")
+    search_fields = ("mediator__name", "mediator__username", "period")
+    list_filter = ("period",)
+    autocomplete_fields = ("mediator",)
+    ordering = ("-created_at",)
+
+    readonly_fields = ("period", "scorer", "created_at")
+    fields = ("mediator", "score", "period", "scorer", "comment", "created_at")
+
+    def get_fields(self, request, obj=None):
+        """新增页面不展示：考核周期、打分人、创建时间。"""
+        if obj is None:
+            return ("mediator", "score", "comment")
+        return super().get_fields(request, obj=obj)
+
+    def get_queryset(self, request):
+        """只显示本网格调解员的绩效记录。"""
+        queryset = super().get_queryset(request)
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        return queryset.filter(mediator__grid__in=managed_grids)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """限制可选择的调解员为本网格的调解员。"""
+        if db_field.name == "mediator":
+            managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+            kwargs["queryset"] = User.objects.filter(
+                role=User.Role.MEDIATOR, is_active=True, grid__in=managed_grids
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        """
+        业务约束：
+        - 新增绩效仅允许本月
+        - 打分人=当前登录用户
+        """
+        obj.scorer = request.user
+        if not change or not obj.period:
+            obj.period = timezone.now().strftime("%Y-%m")
+        super().save_model(request, obj, form, change)
+
+    def has_change_permission(self, request, obj=None):
+        """只能修改本月的绩效记录。"""
+        if obj is not None:
+            current_period = timezone.now().strftime("%Y-%m")
+            if obj.period != current_period:
+                return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        """只能删除本月的绩效记录。"""
+        if obj is not None:
+            current_period = timezone.now().strftime("%Y-%m")
+            if obj.period != current_period:
+                return False
+        return super().has_delete_permission(request, obj)
+
+
+class GridManagerPerformanceHistoryAdmin(admin.ModelAdmin):
+    """
+    网格管理员端 - 历史绩效列表（只读）。
+
+    功能：
+    - 查看本网格调解员的历史绩效记录
+    - 完全只读，不能增删改
+    """
+
+    list_display = ("id", "mediator", "score", "period", "scorer", "comment", "created_at")
+    search_fields = ("mediator__name", "mediator__username", "period")
+    list_filter = ("period", "mediator")
+    ordering = ("-period", "-created_at")
+
+    def get_queryset(self, request):
+        """只显示本网格调解员的历史绩效记录（非本月）。"""
+        queryset = super().get_queryset(request)
+        managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
+        current_period = timezone.now().strftime("%Y-%m")
+        return queryset.filter(mediator__grid__in=managed_grids).exclude(period=current_period)
+
+    def has_add_permission(self, request):
+        """历史记录不能新增。"""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """历史记录不能修改。"""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """历史记录不能删除。"""
+        return False
+
+
 # 注册到网格负责人后台（仅相关功能）
-grid_manager_site.register(User, UserAdmin)
-grid_manager_site.register(PerformanceScore, PerformanceScoreAdmin)
+grid_manager_site.register(User, GridManagerUserAdmin)
+grid_manager_site.register(PerformanceScore, GridManagerPerformanceScoreAdmin)
+grid_manager_site.register(PerformanceHistory, GridManagerPerformanceHistoryAdmin)

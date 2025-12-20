@@ -29,7 +29,8 @@ class DynamicSimpleUIMiddleware:
                         "icon": "fas fa-users",
                         "models": [
                             {"name": "调解员", "icon": "fas fa-user-tie", "url": "/grid-admin/users/user/"},
-                            {"name": "绩效", "icon": "fas fa-chart-line", "url": "/grid-admin/users/performancescore/"},
+                            {"name": "绩效打分", "icon": "fas fa-chart-line", "url": "/grid-admin/users/performancescore/"},
+                            {"name": "历史绩效", "icon": "fas fa-history", "url": "/grid-admin/users/performancehistory/"},
                         ],
                     },
                 ],

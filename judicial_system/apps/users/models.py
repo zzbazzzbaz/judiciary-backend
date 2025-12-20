@@ -233,3 +233,12 @@ class UserAttachment(models.Model):
 
     def __str__(self):
         return self.file.name.split("/")[-1]
+
+
+class PerformanceHistory(PerformanceScore):
+    """历史绩效代理模型（用于网格管理员端只读展示）。"""
+
+    class Meta:
+        proxy = True
+        verbose_name = "历史绩效"
+        verbose_name_plural = verbose_name

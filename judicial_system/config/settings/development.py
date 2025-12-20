@@ -107,6 +107,10 @@ CORS_ALLOW_ALL_ORIGINS = True
 # CSRF 信任的源（用于反向代理和 FRP 等场景）
 CSRF_TRUSTED_ORIGINS = [
     "https://8001.frp.chatgqt.top",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000",
+    "http://localhost",
+    "http://localhost:8000",
 ]
 
 # 自定义用户模型
