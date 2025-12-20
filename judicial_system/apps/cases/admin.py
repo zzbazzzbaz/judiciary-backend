@@ -179,6 +179,7 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
         "reported_at",
         "view_detail_action",
     )
+    list_display_links = None  # 禁用ID点击进入详情
     list_select_related = ("grid", "reporter", "assigned_mediator")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
     list_filter = ("type", "status", "reported_at")
@@ -299,6 +300,7 @@ class GridManagerUnassignedTaskAdmin(admin.ModelAdmin):
         "reported_at",
         "action_buttons",
     )
+    list_display_links = None  # 禁用ID点击进入详情
     list_select_related = ("grid", "reporter")
     search_fields = ("code", "party_name", "party_phone", "reporter__name")
     list_filter = ("type", "reported_at")
