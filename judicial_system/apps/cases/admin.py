@@ -66,7 +66,7 @@ class TaskAdmin(admin.ModelAdmin):
     date_hierarchy = "reported_at"
     ordering = ("-reported_at", "-id")
 
-    readonly_fields = ("code", "reported_at", "created_at", "updated_at")
+    readonly_fields = ("code", "type", "status", "reported_at", "created_at", "updated_at")
     fieldsets = (
         ("任务信息", {"fields": ("code", "type", "status", "grid", "description", "amount")}),
         ("当事人信息", {"fields": ("party_name", "party_phone", "party_address")}),
