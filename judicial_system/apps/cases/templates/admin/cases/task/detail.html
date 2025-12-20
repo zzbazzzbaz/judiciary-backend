@@ -1,0 +1,220 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .detail-container { max-width: 900px; margin: 0 auto; }
+    .status-badge { padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+    .status-reported { background: #fef3c7; color: #92400e; }
+    .status-assigned { background: #dbeafe; color: #1e40af; }
+    .status-processing { background: #e0e7ff; color: #3730a3; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-container p-6">
+    <!-- 返回按钮 -->
+    <div class="mb-4">
+        <a href="{{ back_url|default:'/grid-admin/cases/task/' }}" 
+           class="inline-flex items-center text-blue-600 hover:text-blue-800 transition">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            {{ back_text|default:"返回任务列表" }}
+        </a>
+    </div>
+
+    <!-- 任务详情卡片 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <!-- 头部 -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-2xl font-bold mb-2">{{ task.code }}</h1>
+                    <p class="text-blue-100">{{ task.get_type_display }}</p>
+                </div>
+                <span class="status-badge 
+                    {% if task.status == 'reported' %}status-reported
+                    {% elif task.status == 'assigned' %}status-assigned
+                    {% elif task.status == 'processing' %}status-processing
+                    {% else %}status-completed{% endif %}">
+                    {{ task.get_status_display }}
+                </span>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- 基本信息 -->
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    任务描述
+                </h2>
+                <p class="text-gray-700 bg-gray-50 rounded-lg p-4">{{ task.description }}</p>
+                {% if task.amount %}
+                <p class="mt-3 text-gray-600">
+                    <span class="font-medium">涉及金额：</span>
+                    <span class="text-red-600 font-semibold">¥{{ task.amount }}</span>
+                </p>
+                {% endif %}
+            </section>
+
+            <!-- 当事人信息 -->
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    当事人信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">姓名</span>
+                        <p class="font-medium text-gray-800">{{ task.party_name }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">联系电话</span>
+                        <p class="font-medium text-gray-800">{{ task.party_phone|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">住址</span>
+                        <p class="font-medium text-gray-800">{{ task.party_address|default:"-" }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 上报信息 -->
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    上报信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">上报人</span>
+                        <p class="font-medium text-gray-800">{{ task.reporter.name }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">上报时间</span>
+                        <p class="font-medium text-gray-800">{{ task.reported_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <span class="text-gray-500 text-sm">上报地址</span>
+                        <p class="font-medium text-gray-800">{{ task.report_address|default:"-" }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 分配信息 -->
+            {% if task.assigned_mediator %}
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    分配信息
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">被分配调解员</span>
+                        <p class="font-medium text-gray-800">{{ task.assigned_mediator.name }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">分配人</span>
+                        <p class="font-medium text-gray-800">{{ task.assigner.name|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">分配时间</span>
+                        <p class="font-medium text-gray-800">{{ task.assigned_at|date:"Y-m-d H:i"|default:"-" }}</p>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- 进行中信息 -->
+            {% if task.process_submitted_at %}
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    处理中
+                </h2>
+                <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-gray-500 text-sm">处理方式</span>
+                            <p class="font-medium text-gray-800">{{ task.get_handle_method_display|default:"-" }}</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-sm">参与人员</span>
+                            <p class="font-medium text-gray-800">{{ task.participants|default:"-" }}</p>
+                        </div>
+                    </div>
+                    {% if task.expected_plan %}
+                    <div>
+                        <span class="text-gray-500 text-sm">预计调解方案</span>
+                        <p class="font-medium text-gray-800 mt-1">{{ task.expected_plan }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- 调解结果 -->
+            {% if task.result %}
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    调解结果
+                </h2>
+                <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-gray-500 text-sm">调解结果</span>
+                            <p class="font-medium 
+                                {% if task.result == 'success' %}text-green-600
+                                {% elif task.result == 'failure' %}text-red-600
+                                {% else %}text-yellow-600{% endif %}">
+                                {{ task.get_result_display }}
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-sm">完成时间</span>
+                            <p class="font-medium text-gray-800">{{ task.completed_at|date:"Y-m-d H:i"|default:"-" }}</p>
+                        </div>
+                    </div>
+                    {% if task.result_detail %}
+                    <div>
+                        <span class="text-gray-500 text-sm">结果详情</span>
+                        <p class="font-medium text-gray-800 mt-1">{{ task.result_detail }}</p>
+                    </div>
+                    {% endif %}
+                    {% if task.process_description %}
+                    <div>
+                        <span class="text-gray-500 text-sm">调解过程描述</span>
+                        <p class="font-medium text-gray-800 mt-1">{{ task.process_description }}</p>
+                    </div>
+                    {% endif %}
+                    {% if task.complete_address %}
+                    <div>
+                        <span class="text-gray-500 text-sm">完成地址</span>
+                        <p class="font-medium text-gray-800">{{ task.complete_address }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

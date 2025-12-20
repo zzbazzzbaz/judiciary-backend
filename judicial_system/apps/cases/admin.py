@@ -244,11 +244,22 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
             from django.shortcuts import redirect
             return redirect("grid_admin:cases_task_changelist")
 
+        # 根据来源确定返回链接
+        from_page = request.GET.get("from", "")
+        if from_page == "unassigned":
+            back_url = "/grid-admin/cases/unassignedtask/"
+            back_text = "返回待分配任务"
+        else:
+            back_url = "/grid-admin/cases/task/"
+            back_text = "返回任务列表"
+
         context = {
             "title": f"任务详情: {task.code}",
             "task": task,
             "opts": self.model._meta,
             "has_view_permission": True,
+            "back_url": back_url,
+            "back_text": back_text,
         }
         return render(request, "admin/cases/task/detail.html", context)
 
@@ -299,17 +310,23 @@ class GridManagerUnassignedTaskAdmin(admin.ModelAdmin):
         managed_grids = Grid.objects.filter(current_manager=request.user, is_active=True)
         return queryset.filter(grid__in=managed_grids, status=Task.Status.REPORTED)
 
-    def assign_action(self, obj):
-        """分配操作按钮。"""
+    def action_buttons(self, obj):
+        """操作按钮：详情 + 分配。"""
         from django.utils.html import format_html
+        btn_style = (
+            'display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
+            'border-radius:4px;text-decoration:none;font-size:12px;margin-right:8px;'
+        )
         return format_html(
-            '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
-            'border-radius:4px;text-decoration:none;font-size:12px;" '
-            'href="{}">分配</a>',
+            '<a style="{}" href="{}">详情</a>'
+            '<a style="{}" href="{}">分配</a>',
+            btn_style,
+            f"/grid-admin/cases/task/{obj.pk}/detail/?from=unassigned",
+            btn_style,
             f"/grid-admin/cases/unassignedtask/{obj.pk}/assign/"
         )
-    assign_action.short_description = "操作"
-    assign_action.allow_tags = True
+    action_buttons.short_description = "操作"
+    action_buttons.allow_tags = True
 
     def has_add_permission(self, request):
         return False
