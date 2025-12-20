@@ -50,30 +50,3 @@ class Grid(models.Model):
         return self.name
 
 
-class MediatorAssignment(models.Model):
-    """网格调解员分配表（grids_mediator_assignment）。"""
-
-    grid = models.ForeignKey(
-        Grid,
-        on_delete=models.CASCADE,
-        related_name="mediator_assignments",
-        verbose_name="网格",
-    )
-    mediator = models.ForeignKey(
-        "users.User",
-        on_delete=models.CASCADE,
-        related_name="grid_assignments",
-        verbose_name="调解员",
-    )
-    created_at = models.DateTimeField("创建时间", auto_now_add=True)
-
-    class Meta:
-        db_table = "grids_mediator_assignment"
-        verbose_name = "调解员分配"
-        verbose_name_plural = verbose_name
-        constraints = [
-            # 一个调解员只能属于一个网格
-            models.UniqueConstraint(
-                fields=["mediator"], name="uniq_grids_assignment_mediator"
-            )
-        ]

@@ -15,7 +15,7 @@ from utils.url_utils import get_absolute_url
 from utils.code_generator import generate_task_code
 
 from apps.common.models import Attachment
-from apps.grids.models import Grid, MediatorAssignment
+from apps.grids.models import Grid
 from apps.users.models import User
 
 from .models import Task
@@ -204,10 +204,9 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         validated_data["status"] = Task.Status.REPORTED
 
         # 根据上报人所属网格自动分配
-        assignment = MediatorAssignment.objects.filter(mediator=reporter).select_related("grid").first()
-        if not assignment:
+        if not reporter.grid:
             raise serializers.ValidationError("您尚未分配到任何网格，无法上报任务")
-        validated_data["grid"] = assignment.grid
+        validated_data["grid"] = reporter.grid
 
         # 生成任务编号
         task_type = validated_data["type"]

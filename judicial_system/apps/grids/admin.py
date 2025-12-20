@@ -15,47 +15,7 @@ from django.urls import path
 from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
 
-from .models import Grid, MediatorAssignment
-
-
-from django import forms
-
-
-class MediatorAssignmentForm(forms.ModelForm):
-    """调解员分配表单，验证一个调解员只能属于一个网格。"""
-
-    class Meta:
-        model = MediatorAssignment
-        fields = "__all__"
-
-    def clean_mediator(self):
-        mediator = self.cleaned_data.get("mediator")
-        if not mediator:
-            return mediator
-        # 检查该调解员是否已分配到其他网格（排除当前记录）
-        qs = MediatorAssignment.objects.filter(mediator=mediator).select_related("grid")
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-        existing = qs.first()
-        if existing:
-            raise forms.ValidationError(f"该调解员已分配到网格「{existing.grid.name}」，一个调解员只能属于一个网格")
-        return mediator
-
-
-class MediatorAssignmentInline(admin.TabularInline):
-    """在网格详情页内进行调解员分配。"""
-
-    model = MediatorAssignment
-    form = MediatorAssignmentForm
-    extra = 0
-    autocomplete_fields = ("mediator",)
-    fields = ("mediator", "created_at")
-    readonly_fields = ("created_at",)
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "mediator":
-            kwargs["queryset"] = User.objects.filter(role=User.Role.MEDIATOR, is_active=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+from .models import Grid
 
 
 class GridAdmin(admin.ModelAdmin):
@@ -67,7 +27,6 @@ class GridAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
     autocomplete_fields = ("current_manager",)
-    inlines = (MediatorAssignmentInline,)
 
     readonly_fields = ("created_at", "updated_at")
     fieldsets = (
@@ -139,7 +98,7 @@ class GridAdmin(admin.ModelAdmin):
         return TemplateResponse(request, "admin/grids/grid/draw_boundary.html", context)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(_mediator_count=Count("mediator_assignments", distinct=True))
+        return super().get_queryset(request).annotate(_mediator_count=Count("members", distinct=True))
 
     @admin.display(description="调解员数量", ordering="_mediator_count")
     def mediator_count(self, obj: Grid) -> int:

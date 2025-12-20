@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 
-from .models import Grid, MediatorAssignment
+from .models import Grid
 
 
 class UserSimpleSerializer(serializers.ModelSerializer):
@@ -41,9 +41,8 @@ class GridWithPersonnelSerializer(serializers.ModelSerializer):
 
     def get_mediators(self, obj):
         """获取网格下的调解员列表"""
-        # 通过 MediatorAssignment 获取分配到该网格的调解员
-        assignments = obj.mediator_assignments.select_related("mediator").all()
-        mediators = [assignment.mediator for assignment in assignments]
+        # 通过 User.grid 外键获取属于该网格的调解员
+        mediators = obj.members.filter(role=User.Role.MEDIATOR, is_active=True)
         return UserSimpleSerializer(mediators, many=True).data
 
 

@@ -16,6 +16,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.utils import timezone
 
+from apps.grids.models import Grid
 from config.admin_sites import admin_site, grid_manager_site
 from .models import Organization, PerformanceScore, TrainingRecord, User, UserAttachment
 
@@ -34,7 +35,7 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("username", "name", "role", "organization", "is_active", "gender", "id_card", "phone")
+        fields = ("username", "name", "role", "grid", "organization", "is_active", "gender", "id_card", "phone")
 
     def clean_password2(self):
         password1 = self.cleaned_data.get("password1")
@@ -43,11 +44,34 @@ class UserCreationForm(forms.ModelForm):
             raise forms.ValidationError("两次输入的密码不一致")
         return password2
 
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get("role")
+        grid = cleaned_data.get("grid")
+
+        # 调解员必须有所属网格
+        if role == User.Role.MEDIATOR and not grid:
+            raise forms.ValidationError("调解员必须选择所属网格")
+
+        # 网格管理员必须有所属网格且该网格未分配其他管理员
+        if role == User.Role.GRID_MANAGER:
+            if not grid:
+                raise forms.ValidationError("网格管理员必须选择所属网格")
+            # 检查该网格是否已有网格管理员
+            if grid.current_manager_id is not None:
+                raise forms.ValidationError(f"网格「{grid.name}」已有网格管理员，请选择其他网格")
+
+        return cleaned_data
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
         if commit:
             user.save()
+            # 如果是网格管理员，同步更新网格的 current_manager
+            if user.role == User.Role.GRID_MANAGER and user.grid:
+                user.grid.current_manager = user
+                user.grid.save(update_fields=["current_manager"])
         return user
 
 
@@ -73,11 +97,31 @@ class UserChangeForm(forms.ModelForm):
             "phone",
             "organization",
             "role",
+            "grid",
             "is_active",
         )
 
     def clean_password(self):
         return self.initial.get("password")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get("role")
+        grid = cleaned_data.get("grid")
+
+        # 调解员必须有所属网格
+        if role == User.Role.MEDIATOR and not grid:
+            raise forms.ValidationError("调解员必须选择所属网格")
+
+        # 网格管理员必须有所属网格且该网格未分配其他管理员
+        if role == User.Role.GRID_MANAGER:
+            if not grid:
+                raise forms.ValidationError("网格管理员必须选择所属网格")
+            # 检查该网格是否已有其他网格管理员（排除当前用户）
+            if grid.current_manager_id is not None and grid.current_manager_id != self.instance.pk:
+                raise forms.ValidationError(f"网格「{grid.name}」已有网格管理员，请选择其他网格")
+
+        return cleaned_data
 
 
 class UserAdmin(BaseUserAdmin):
@@ -95,7 +139,7 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         ("账号信息", {"fields": ("username", "password")}),
-        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization", "role")}),
+        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization", "role", "grid")}),
         ("状态", {"fields": ("is_active",)}),
         ("时间", {"fields": ("last_login", "created_at", "updated_at")}),
     )
@@ -109,6 +153,7 @@ class UserAdmin(BaseUserAdmin):
                     "username",
                     "name",
                     "role",
+                    "grid",
                     "organization",
                     "is_active",
                     "gender",
@@ -140,11 +185,10 @@ class UserAdmin(BaseUserAdmin):
 
         # grid_manager 角色返回其管理网格中的调解员
         if hasattr(request.user, 'role') and request.user.role == User.Role.GRID_MANAGER:
-            from apps.grids.models import Grid
             # 获取该 grid_manager 管理的网格
             managed_grids = Grid.objects.filter(current_manager=request.user)
-            # 返回这些网格中分配的调解员
-            return queryset.filter(grid_assignments__grid__in=managed_grids).distinct()
+            # 返回这些网格中的调解员
+            return queryset.filter(grid__in=managed_grids).distinct()
 
         # 其他角色返回空查询集
         return queryset.none()
@@ -164,6 +208,50 @@ class UserAdmin(BaseUserAdmin):
                 kwargs["choices"] = [(User.Role.MEDIATOR, "调解员")]
 
         return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        限制网格下拉列表的可选项。
+
+        说明：
+        - 网格管理员：只显示未分配网格管理员的网格（或当前用户已分配的网格）
+        - 调解员：显示所有启用的网格
+        """
+        if db_field.name == "grid":
+            # 获取当前编辑的用户对象
+            obj_id = request.resolver_match.kwargs.get("object_id")
+            current_user_grid_id = None
+            if obj_id:
+                try:
+                    current_user = User.objects.get(pk=obj_id)
+                    current_user_grid_id = current_user.grid_id
+                except User.DoesNotExist:
+                    pass
+            # 显示未分配网格管理员的网格，或当前用户已分配的网格
+            from django.db.models import Q
+            kwargs["queryset"] = Grid.objects.filter(
+                Q(current_manager__isnull=True) | Q(id=current_user_grid_id),
+                is_active=True
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        """
+        保存用户时同步更新网格的 current_manager。
+        """
+        super().save_model(request, obj, form, change)
+
+        # 如果是网格管理员，同步更新网格的 current_manager
+        if obj.role == User.Role.GRID_MANAGER and obj.grid:
+            # 先清除该用户在其他网格的管理员身份
+            Grid.objects.filter(current_manager=obj).exclude(id=obj.grid_id).update(current_manager=None)
+            # 设置当前网格的管理员
+            if obj.grid.current_manager_id != obj.pk:
+                obj.grid.current_manager = obj
+                obj.grid.save(update_fields=["current_manager"])
+        elif obj.role != User.Role.GRID_MANAGER:
+            # 如果角色不是网格管理员，清除其管理的网格
+            Grid.objects.filter(current_manager=obj).update(current_manager=None)
 
     def get_search_results(self, request, queryset, search_term):
         """

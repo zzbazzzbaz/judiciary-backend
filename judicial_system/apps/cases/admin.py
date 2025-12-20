@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.grids.models import Grid, MediatorAssignment
+from apps.grids.models import Grid
 from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
 from utils.code_generator import generate_task_code
@@ -36,8 +36,8 @@ class TaskAdminForm(forms.ModelForm):
                 raise forms.ValidationError("被分配人员必须为启用状态的调解员")
             if not grid:
                 raise forms.ValidationError("分派调解员前必须先选择所属网格")
-            if not MediatorAssignment.objects.filter(grid=grid, mediator=assigned_mediator).exists():
-                raise forms.ValidationError("该调解员不在此网格内，请先在网格中分配调解员")
+            if assigned_mediator.grid_id != grid.id:
+                raise forms.ValidationError("该调解员不在此网格内，请先将调解员分配到该网格")
 
         return cleaned_data
 

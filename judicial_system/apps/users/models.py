@@ -10,7 +10,6 @@ from __future__ import annotations
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
-from apps.grids.models import Grid
 
 
 class Organization(models.Model):
@@ -116,6 +115,14 @@ class User(AbstractBaseUser):
         verbose_name="所属机构",
     )  # 所属机构
     role = models.CharField("角色", max_length=20, choices=Role.choices, default=Role.MEDIATOR)
+    grid = models.ForeignKey(
+        "grids.Grid",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="members",
+        verbose_name="所属网格",
+    )
     is_active = models.BooleanField("是否启用", default=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
@@ -150,30 +157,6 @@ class User(AbstractBaseUser):
     def has_module_perms(self, app_label) -> bool:
         """Django admin 需要的模块权限接口"""
         return True
-
-    @property
-    def grid(self):
-        """
-        动态查询用户所属网格。
-
-        说明：
-        - grid_manager：通过 Grid.current_manager 反向查询
-        - mediator：通过 MediatorAssignment 查询
-        - 其他角色：返回 None
-        """
-        from apps.grids.models import Grid
-
-        # 网格负责人：查询其管理的网格
-        if self.role == self.Role.GRID_MANAGER:
-            return Grid.objects.filter(current_manager=self).first()
-
-        # 调解员：查询其分配的网格
-        if self.role == self.Role.MEDIATOR:
-            assignment = self.grid_assignments.first()
-            return assignment.grid if assignment else None
-
-        return None
-
 
 class TrainingRecord(models.Model):
     """培训记录表（users_training_record）。"""
