@@ -25,9 +25,16 @@ class ArticleAdmin(admin.ModelAdmin):
     )
     search_fields = ("title",)
     list_filter = ("status", "category")
-    autocomplete_fields = ("publisher", 'files')
+    autocomplete_fields = ('files',)
     list_editable = ("status","sort_order")
     ordering = ("sort_order","-created_at",)
+    readonly_fields = ("publisher",)
+
+    def save_model(self, request, obj, form, change):
+        """新增文章时自动设置发布人为当前用户"""
+        if not change:  # 新增时
+            obj.publisher = request.user
+        super().save_model(request, obj, form, change)
 
 
 class ContentAttachmentAdmin(admin.ModelAdmin):
