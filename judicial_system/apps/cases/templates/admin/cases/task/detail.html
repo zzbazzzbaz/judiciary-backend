@@ -112,6 +112,49 @@
                 </div>
             </section>
 
+            <!-- 上报附件 -->
+            {% if report_images or report_files %}
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    上报附件
+                </h2>
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    {% if report_images %}
+                    <div>
+                        <span class="text-gray-500 text-sm block mb-2">上报图片 ({{ report_images|length }})</span>
+                        <div class="flex flex-wrap gap-3">
+                            {% for img in report_images %}
+                            <a href="{{ img.file.url }}" target="_blank" class="block">
+                                <img src="{{ img.file.url }}" alt="{{ img.original_name|default:'图片' }}" 
+                                     class="w-24 h-24 object-cover rounded-lg border border-gray-200 hover:border-blue-400 transition"/>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if report_files %}
+                    <div>
+                        <span class="text-gray-500 text-sm block mb-2">上报文件 ({{ report_files|length }})</span>
+                        <div class="space-y-2">
+                            {% for f in report_files %}
+                            <a href="{{ f.file.url }}" target="_blank" 
+                               class="flex items-center p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
+                                <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                <span class="text-sm text-gray-700">{{ f.original_name|default:"文件" }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
             <!-- 分配信息 -->
             {% if task.assigned_mediator %}
             <section>
@@ -213,6 +256,49 @@
                     {% endif %}
                 </div>
             </section>
+
+            <!-- 完成附件 -->
+            {% if complete_images or complete_files %}
+            <section>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    完成附件
+                </h2>
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    {% if complete_images %}
+                    <div>
+                        <span class="text-gray-500 text-sm block mb-2">完成图片 ({{ complete_images|length }})</span>
+                        <div class="flex flex-wrap gap-3">
+                            {% for img in complete_images %}
+                            <a href="{{ img.file.url }}" target="_blank" class="block">
+                                <img src="{{ img.file.url }}" alt="{{ img.original_name|default:'图片' }}" 
+                                     class="w-24 h-24 object-cover rounded-lg border border-gray-200 hover:border-blue-400 transition"/>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if complete_files %}
+                    <div>
+                        <span class="text-gray-500 text-sm block mb-2">完成文件 ({{ complete_files|length }})</span>
+                        <div class="space-y-2">
+                            {% for f in complete_files %}
+                            <a href="{{ f.file.url }}" target="_blank" 
+                               class="flex items-center p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
+                                <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                <span class="text-sm text-gray-700">{{ f.original_name|default:"文件" }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
             {% endif %}
         </div>
     </div>

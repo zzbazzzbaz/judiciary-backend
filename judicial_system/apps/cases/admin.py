@@ -7,9 +7,23 @@ from django.contrib import admin
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.common.models import Attachment
 from apps.grids.models import Grid
 from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
+
+
+def get_attachments_from_ids(ids_str: str) -> list:
+    """根据逗号分隔的ID字符串获取附件列表。"""
+    if not ids_str:
+        return []
+    try:
+        ids = [int(i.strip()) for i in ids_str.split(",") if i.strip()]
+        return list(Attachment.objects.filter(id__in=ids))
+    except (ValueError, TypeError):
+        return []
+
+
 from utils.code_generator import generate_task_code
 
 from .models import Task, UnassignedTask
@@ -59,6 +73,7 @@ class TaskAdmin(admin.ModelAdmin):
         "reported_at",
         "assigned_at",
         "completed_at",
+        "view_detail_action",
     )
     list_select_related = ("grid", "reporter", "assigned_mediator")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
@@ -152,6 +167,60 @@ class TaskAdmin(admin.ModelAdmin):
 
         if last_error:
             raise last_error
+
+    def view_detail_action(self, obj):
+        """查看详情按钮。"""
+        from django.utils.html import format_html
+        return format_html(
+            '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
+            'border-radius:4px;text-decoration:none;font-size:12px;" '
+            'href="{}">详情</a>',
+            f"/admin/cases/task/{obj.pk}/detail/"
+        )
+    view_detail_action.short_description = "操作"
+    view_detail_action.allow_tags = True
+
+    def get_urls(self):
+        """添加自定义详情页 URL。"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:task_id>/detail/",
+                self.admin_site.admin_view(self.detail_view),
+                name="cases_task_detail",
+            ),
+        ]
+        return custom_urls + urls
+
+    def detail_view(self, request, task_id):
+        """任务详情视图（管理员端）。"""
+        from django.shortcuts import get_object_or_404, render
+
+        task = get_object_or_404(
+            Task.objects.select_related("grid", "reporter", "assigned_mediator", "assigner"),
+            pk=task_id
+        )
+
+        # 获取附件
+        report_images = get_attachments_from_ids(task.report_image_ids)
+        report_files = get_attachments_from_ids(task.report_file_ids)
+        complete_images = get_attachments_from_ids(task.complete_image_ids)
+        complete_files = get_attachments_from_ids(task.complete_file_ids)
+
+        context = {
+            "title": f"任务详情: {task.code}",
+            "task": task,
+            "opts": self.model._meta,
+            "has_view_permission": True,
+            "back_url": "/admin/cases/task/",
+            "back_text": "返回任务列表",
+            "report_images": report_images,
+            "report_files": report_files,
+            "complete_images": complete_images,
+            "complete_files": complete_files,
+        }
+        return render(request, "admin/cases/task/detail.html", context)
 
 
 # 注册到管理员后台
@@ -255,6 +324,12 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
             back_url = "/grid-admin/cases/task/"
             back_text = "返回任务列表"
 
+        # 获取附件
+        report_images = get_attachments_from_ids(task.report_image_ids)
+        report_files = get_attachments_from_ids(task.report_file_ids)
+        complete_images = get_attachments_from_ids(task.complete_image_ids)
+        complete_files = get_attachments_from_ids(task.complete_file_ids)
+
         context = {
             "title": f"任务详情: {task.code}",
             "task": task,
@@ -262,6 +337,10 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
             "has_view_permission": True,
             "back_url": back_url,
             "back_text": back_text,
+            "report_images": report_images,
+            "report_files": report_files,
+            "complete_images": complete_images,
+            "complete_files": complete_files,
         }
         return render(request, "admin/cases/task/detail.html", context)
 
@@ -384,12 +463,18 @@ class GridManagerUnassignedTaskAdmin(admin.ModelAdmin):
         else:
             form = AssignMediatorForm(grid=task.grid)
 
+        # 获取上报附件
+        report_images = get_attachments_from_ids(task.report_image_ids)
+        report_files = get_attachments_from_ids(task.report_file_ids)
+
         context = {
             "title": f"分配任务: {task.code}",
             "task": task,
             "form": form,
             "opts": self.model._meta,
             "has_view_permission": True,
+            "report_images": report_images,
+            "report_files": report_files,
         }
         return render(request, "admin/cases/unassignedtask/assign.html", context)
 

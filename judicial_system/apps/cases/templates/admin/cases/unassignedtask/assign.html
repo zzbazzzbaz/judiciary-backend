@@ -48,6 +48,47 @@
             </div>
         </div>
 
+        <!-- 上报附件 -->
+        {% if report_images or report_files %}
+        <div class="mb-6 bg-gray-50 rounded-lg p-4">
+            <h3 class="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                </svg>
+                上报附件
+            </h3>
+            {% if report_images %}
+            <div class="mb-3">
+                <span class="text-gray-500 text-sm block mb-2">上报图片 ({{ report_images|length }})</span>
+                <div class="flex flex-wrap gap-2">
+                    {% for img in report_images %}
+                    <a href="{{ img.file.url }}" target="_blank" class="block">
+                        <img src="{{ img.file.url }}" alt="{{ img.original_name|default:'图片' }}" 
+                             class="w-16 h-16 object-cover rounded border border-gray-200 hover:border-blue-400 transition"/>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if report_files %}
+            <div>
+                <span class="text-gray-500 text-sm block mb-2">上报文件 ({{ report_files|length }})</span>
+                <div class="space-y-1">
+                    {% for f in report_files %}
+                    <a href="{{ f.file.url }}" target="_blank" 
+                       class="flex items-center p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition text-sm">
+                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-gray-700">{{ f.original_name|default:"文件" }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- 分配表单 -->
         <form method="post" class="space-y-4">
             {% csrf_token %}
