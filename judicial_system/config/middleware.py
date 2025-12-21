@@ -22,6 +22,7 @@ class DynamicSimpleUIMiddleware:
                             {"name": "待分配任务", "icon": "fas fa-clipboard-list",
                              "url": "/grid-admin/cases/unassignedtask/"},
                             {"name": "所有任务", "icon": "fas fa-tasks", "url": "/grid-admin/cases/task/"},
+                            {"name": "任务附件", "icon": "fas fa-file", "url": "/grid-admin/common/attachment/"},
                         ],
                     },
                     {
@@ -33,13 +34,6 @@ class DynamicSimpleUIMiddleware:
                              "url": "/grid-admin/users/performancescore/"},
                             {"name": "历史绩效", "icon": "fas fa-history",
                              "url": "/grid-admin/users/performancehistory/"},
-                        ],
-                    },
-                    {
-                        "name": "附件管理",
-                        "icon": "fas fa-paperclip",
-                        "models": [
-                            {"name": "附件列表", "icon": "fas fa-file", "url": "/grid-admin/common/attachment/"},
                         ],
                     },
                 ],
@@ -54,9 +48,9 @@ class DynamicSimpleUIMiddleware:
                         "icon": "fas fa-map-marked-alt",
                         "models": [
                             {"name": "地图", "icon": "fas fa-map", "url": "/admin-html/map-dashboard.html"},
-                            # {"name": "统计", "icon": "fas fa-chart-pie ", "url": " /admin/grids/statistics/"},
                             {"name": "网格", "icon": "fas fa-border-all", "url": "/admin/grids/grid/"},
                             {"name": "任务", "icon": "fas fa-tasks", "url": "/admin/cases/task/"},
+                            {"name": "任务附件", "icon": "fas fa-file", "url": "/admin/common/attachment/"},
                         ],
                     },
                     {
@@ -90,13 +84,6 @@ class DynamicSimpleUIMiddleware:
                         "icon": "fas fa-building",
                         "models": [
                             {"name": "机构", "icon": "fas fa-sitemap", "url": "/admin/users/organization/"},
-                        ],
-                    },
-                    {
-                        "name": "附件管理",
-                        "icon": "fas fa-paperclip",
-                        "models": [
-                            {"name": "附件列表", "icon": "fas fa-file", "url": "/grid-admin/common/attachment/"},
                         ],
                     },
                     {

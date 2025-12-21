@@ -2,6 +2,7 @@
 
 from django.contrib import admin
 
+from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
 from .models import Attachment, MapConfig
 
@@ -15,14 +16,14 @@ class AttachmentAdmin(admin.ModelAdmin):
 
 
 class AttachmentReadOnlyAdmin(admin.ModelAdmin):
-    """附件管理（网格管理员后台，只读）。"""
+    """附件管理（网格管理员后台，管理员可修改删除，网格管理员只能新增）。"""
 
     list_display = ("id", "file", "file_type", "file_size", "original_name")
     list_filter = ("file_type",)
     search_fields = ("original_name",)
 
     def has_add_permission(self, request):
-        return False
+        return True
 
     def has_change_permission(self, request, obj=None):
         return False
