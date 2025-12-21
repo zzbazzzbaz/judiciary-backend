@@ -171,6 +171,9 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "utils.exceptions.custom_exception_handler",
 }
 
+# SimpleUI 配置：隐藏主页版本信息卡片
+SIMPLEUI_HOME_INFO = False
+
 # SimpleUI 菜单配置
 SIMPLEUI_CONFIG = {
     # 保留系统默认菜单，并追加自定义菜单

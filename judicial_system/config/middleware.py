@@ -19,7 +19,8 @@ class DynamicSimpleUIMiddleware:
                         "name": "网格管理",
                         "icon": "fas fa-map-marked-alt",
                         "models": [
-                            {"name": "待分配任务", "icon": "fas fa-clipboard-list", "url": "/grid-admin/cases/unassignedtask/"},
+                            {"name": "待分配任务", "icon": "fas fa-clipboard-list",
+                             "url": "/grid-admin/cases/unassignedtask/"},
                             {"name": "所有任务", "icon": "fas fa-tasks", "url": "/grid-admin/cases/task/"},
                         ],
                     },
@@ -28,8 +29,17 @@ class DynamicSimpleUIMiddleware:
                         "icon": "fas fa-users",
                         "models": [
                             {"name": "调解员", "icon": "fas fa-user-tie", "url": "/grid-admin/users/user/"},
-                            {"name": "绩效打分", "icon": "fas fa-chart-line", "url": "/grid-admin/users/performancescore/"},
-                            {"name": "历史绩效", "icon": "fas fa-history", "url": "/grid-admin/users/performancehistory/"},
+                            {"name": "绩效打分", "icon": "fas fa-chart-line",
+                             "url": "/grid-admin/users/performancescore/"},
+                            {"name": "历史绩效", "icon": "fas fa-history",
+                             "url": "/grid-admin/users/performancehistory/"},
+                        ],
+                    },
+                    {
+                        "name": "附件管理",
+                        "icon": "fas fa-paperclip",
+                        "models": [
+                            {"name": "附件列表", "icon": "fas fa-file", "url": "/grid-admin/common/attachment/"},
                         ],
                     },
                 ],
@@ -72,7 +82,7 @@ class DynamicSimpleUIMiddleware:
                         "name": "文档管理",
                         "icon": "fas fa-folder-open",
                         "models": [
-                            {"name": "文档", "icon": "fas fa-file-pdf", "url": "/admin/content/document/"},
+                            {"name": "文书模板", "icon": "fas fa-file-pdf", "url": "/admin/content/document/"},
                         ],
                     },
                     {
@@ -81,11 +91,20 @@ class DynamicSimpleUIMiddleware:
                         "models": [
                             {"name": "机构", "icon": "fas fa-sitemap", "url": "/admin/users/organization/"},
                         ],
-                    }, {
-                        "name": "系统配置",
-                        "icon": "fas fa-building",
+                    },
+                    {
+                        "name": "附件管理",
+                        "icon": "fas fa-paperclip",
                         "models": [
-                            {"name": "地图配置", "icon": "fas fa-sitemap", "url": "/admin/common/mapconfig/"},
+                            {"name": "附件列表", "icon": "fas fa-file", "url": "/grid-admin/common/attachment/"},
+                        ],
+                    },
+                    {
+                        "name": "系统配置",
+                        "icon": "fas fa-cog",
+                        "models": [
+                            {"name": "地图配置", "icon": "fas fa-map-marker-alt", "url": "/admin/common/mapconfig/"},
+                            {"name": "附件管理", "icon": "fas fa-paperclip", "url": "/admin/common/attachment/"},
                         ],
                     },
                 ],
