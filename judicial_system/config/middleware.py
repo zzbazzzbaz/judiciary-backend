@@ -91,7 +91,6 @@ class DynamicSimpleUIMiddleware:
                         "icon": "fas fa-cog",
                         "models": [
                             {"name": "地图配置", "icon": "fas fa-map-marker-alt", "url": "/admin/common/mapconfig/"},
-                            {"name": "附件管理", "icon": "fas fa-paperclip", "url": "/admin/common/attachment/"},
                         ],
                     },
                 ],
