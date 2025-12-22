@@ -102,10 +102,33 @@ class ContentAttachment(models.Model):
 
 ####################################################################################################
 
+class DocumentCategory(models.Model):
+    """文档分类表（content_document_category）。"""
+
+    name = models.CharField("分类名称", max_length=50, unique=True)
+    sort_order = models.IntegerField("排序", default=0)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+
+    class Meta:
+        db_table = "content_document_category"
+        verbose_name = "文档分类"
+        verbose_name_plural = verbose_name
+
+    def __str__(self) -> str: return self.name
+
+
 class Document(models.Model):
     """文档资料表（content_document）。"""
 
     name = models.CharField("文档名称", max_length=200)
+    category = models.ForeignKey(
+        DocumentCategory,
+        on_delete=models.PROTECT,
+        related_name="documents",
+        verbose_name="分类",
+        null=True,
+        blank=True,
+    )
     file = models.FileField("文件", max_length=255, upload_to="documents/%Y/%m/")
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
 

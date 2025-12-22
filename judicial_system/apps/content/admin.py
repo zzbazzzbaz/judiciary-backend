@@ -3,7 +3,7 @@
 from django.contrib import admin
 
 from config.admin_sites import admin_site
-from .models import Activity, Article, Category, ContentAttachment, Document
+from .models import Activity, Article, Category, ContentAttachment, Document, DocumentCategory
 
 
 class CategoryAdmin(admin.ModelAdmin):
@@ -49,9 +49,16 @@ class ActivityAdmin(admin.ModelAdmin):
     autocomplete_fields = ('files',)
 
 
+class DocumentCategoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "sort_order", "created_at")
+    ordering = ("sort_order", "id")
+    list_editable = ("sort_order",)
+
+
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "file", "created_at")
+    list_display = ("id", "name", "category", "file", "created_at")
     search_fields = ("name",)
+    list_filter = ("category",)
 
 
 # 注册到管理员后台
@@ -60,3 +67,4 @@ admin_site.register(Article, ArticleAdmin)
 admin_site.register(ContentAttachment, ContentAttachmentAdmin)
 admin_site.register(Activity, ActivityAdmin)
 admin_site.register(Document, DocumentAdmin)
+admin_site.register(DocumentCategory, DocumentCategoryAdmin)

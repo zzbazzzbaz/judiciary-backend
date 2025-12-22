@@ -11,13 +11,14 @@ from rest_framework.permissions import AllowAny
 
 from utils.responses import error_response, success_response
 
-from .models import Activity, Article, Category, Document
+from .models import Activity, Article, Category, Document, DocumentCategory
 from .serializers import (
     ActivityDetailSerializer,
     ActivityListSerializer,
     ArticleDetailSerializer,
     ArticleListSerializer,
     CategorySerializer,
+    DocumentCategorySerializer,
     DocumentSerializer,
 )
 
@@ -162,17 +163,41 @@ class CategoryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return success_response(data=self.get_serializer(qs, many=True).data)
 
 
-class DocumentViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+class DocumentCategoryViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
-    文档资料接口：
-    - GET /api/v1/documents/
+    文档分类接口：
+    - GET /api/v1/document-categories/
     """
 
-    queryset = Document.objects.all().order_by("-created_at", "-id")
-    serializer_class = DocumentSerializer
+    queryset = DocumentCategory.objects.all().order_by("sort_order", "id")
+    serializer_class = DocumentCategorySerializer
     permission_classes = [AllowAny]
     pagination_class = None
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
+        return success_response(data=self.get_serializer(qs, many=True).data)
+
+
+class DocumentViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    文档资料接口：
+    - GET /api/v1/documents/
+    - GET /api/v1/documents/?category_id=1  获取某个分类的文书模板
+    """
+
+    serializer_class = DocumentSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+
+    def get_queryset(self):
+        return Document.objects.select_related("category").order_by("-created_at", "-id")
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+
+        category_id = request.query_params.get("category_id")
+        if category_id and str(category_id).isdigit():
+            qs = qs.filter(category_id=int(category_id))
+
         return success_response(data=self.get_serializer(qs, many=True, context={"request": request}).data)

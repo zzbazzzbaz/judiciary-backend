@@ -76,6 +76,7 @@ class DynamicSimpleUIMiddleware:
                         "name": "文档管理",
                         "icon": "fas fa-folder-open",
                         "models": [
+                            {"name": "文档分类", "icon": "fas fa-folder", "url": "/admin/content/documentcategory/"},
                             {"name": "文书模板", "icon": "fas fa-file-pdf", "url": "/admin/content/document/"},
                         ],
                     },
