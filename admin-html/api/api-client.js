@@ -1,6 +1,10 @@
 (function (global) {
+  // 硬编码的 API 基础地址
+  var API_BASE_URL = "https://8001.frp.chatgqt.top";
+
   function joinUrl(base, path) {
-    var b = String(base || "").replace(/\/+$/, "");
+    // 忽略传入的 base，始终使用硬编码的 API_BASE_URL
+    var b = String(API_BASE_URL).replace(/\/+$/, "");
     var p = String(path || "");
     if (!p) return b;
     if (/^https?:\/\//i.test(p)) return p;
