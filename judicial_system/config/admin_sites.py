@@ -6,14 +6,10 @@
 - GridManagerSite: 网格负责人后台（简化菜单）
 """
 
-from django.contrib import admin
-from django.contrib.auth import logout as auth_logout
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-from django.views.decorators.cache import never_cache
+from django.contrib.admin import AdminSite
 
 
-class AdminSite(admin.AdminSite):
+class AdminSite(AdminSite):
     """管理员后台"""
 
     site_header = "司法监管系统 - 管理员后台"
@@ -28,17 +24,6 @@ class AdminSite(admin.AdminSite):
             and hasattr(request.user, 'role')
             and request.user.role == 'admin'
         )
-
-    @never_cache
-    def logout(self, request, extra_context=None):
-        """
-        自定义 logout 视图，支持 GET 请求。
-        
-        说明：Django 4.0+ 的 LogoutView 默认需要 POST 请求，
-        但 admin 模板的退出链接使用 GET，导致 CSRF 错误。
-        """
-        auth_logout(request)
-        return HttpResponseRedirect(reverse(f'{self.name}:login'))
 
 
 class GridManagerSite(AdminSite):
