@@ -58,7 +58,6 @@ _chat/
 *.md
 
 # 前端相关
-admin-html/
 node_modules/
 
 # 系统文件
