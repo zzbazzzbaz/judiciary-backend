@@ -5,7 +5,7 @@
 
 services:
   web:
-    image: judiciary-backend:latest
+    image: ghcr.io/zzbazzzbaz/judiciary-backend:latest
     container_name: judiciary-backend
     restart: always
 

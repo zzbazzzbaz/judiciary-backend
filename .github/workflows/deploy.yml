@@ -86,9 +86,9 @@ jobs:
             echo "Loading Docker image..."
             gunzip -c /tmp/image.tar.gz | sudo docker load
 
-            # 重启服务
+            # 重启服务（--pull never 使用本地镜像，不尝试拉取）
             echo "Restarting service..."
-            sudo docker compose up -d
+            sudo docker compose up -d --pull never
 
             # 清理临时文件
             rm -f /tmp/image.tar.gz
