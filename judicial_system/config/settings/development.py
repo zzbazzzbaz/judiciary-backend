@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "ckeditor",
     "ckeditor_uploader",
+    "import_export",
     "apps.common.apps.CommonConfig",
     "apps.users.apps.UsersConfig",
     "apps.grids.apps.GridsConfig",
@@ -88,7 +89,11 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # collectstatic 收集目录
 STATICFILES_DIRS = [
     BASE_DIR.parent / "admin-html",  # 添加 admin-html 目录到静态文件搜索路径
+    BASE_DIR / "static",  # 添加 static 目录（用于导入模板等）
 ]
+
+# 导入模板文件目录
+IMPORT_TEMPLATES_DIR = BASE_DIR / "static" / "import_templates"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

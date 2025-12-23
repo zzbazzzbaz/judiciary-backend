@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "corsheaders",
+    "import_export",
     "apps.common.apps.CommonConfig",
     "apps.users.apps.UsersConfig",
     "apps.grids.apps.GridsConfig",
@@ -94,6 +95,13 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+# 导入模板文件目录
+IMPORT_TEMPLATES_DIR = BASE_DIR / "static" / "import_templates"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
