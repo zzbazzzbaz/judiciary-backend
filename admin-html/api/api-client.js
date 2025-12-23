@@ -1,6 +1,6 @@
 (function (global) {
-  // 硬编码的 API 基础地址
-  var API_BASE_URL = "https://8001.frp.chatgqt.top";
+  // 动态获取 API 基础地址（与当前页面同域）
+  var API_BASE_URL = global.location.origin;
 
   function joinUrl(base, path) {
     // 忽略传入的 base，始终使用硬编码的 API_BASE_URL
