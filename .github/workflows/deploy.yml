@@ -1,13 +1,12 @@
 # GitHub Actions 自动部署工作流
-# 当代码推送到 main 分支时，自动构建 Docker 镜像并部署到服务器
+# production 分支推送时自动触发，其他分支可手动触发
 
 name: Build and Deploy
 
 on:
   push:
-    branches: [production]
-  # 允许手动触发
-  workflow_dispatch:
+    branches: [production]  # production 分支自动触发
+  workflow_dispatch:        # 允许手动触发（任意分支）
 
 env:
   REGISTRY: ghcr.io
