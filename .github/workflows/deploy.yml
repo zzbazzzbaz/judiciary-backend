@@ -113,10 +113,12 @@ jobs:
             sudo docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
             echo ""
 
-            # 健康检查
+            # 健康检查（等待服务完全启动）
             echo "----------------------------------------"
             echo "💊 健康检查..."
             echo "----------------------------------------"
+            echo "⏳ 等待10秒让服务完全启动..."
+            sleep 10
             if sudo docker compose ps | grep -q "unhealthy\|Exit"; then
               echo "⚠️  警告: 存在异常容器，请检查日志"
               sudo docker compose logs --tail=20
