@@ -76,18 +76,15 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            # 进入部署目录
             cd /opt/judiciary-backend
 
             # 登录 GitHub Container Registry
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # 拉取最新镜像
-            docker compose pull
-
-            # 重启服务
-            docker compose up -d
+            # 拉取最新镜像并重启服务
+            sudo docker compose pull
+            sudo docker compose up -d
 
             # 输出部署状态
             echo "Deployment completed at $(date)"
-            docker compose ps
+            sudo docker compose ps

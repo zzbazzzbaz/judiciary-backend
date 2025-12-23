@@ -3,8 +3,6 @@
 # 将此文件复制到服务器的 /opt/judiciary-backend/ 目录，重命名为 docker-compose.yml
 # =============================================================================
 
-version: '3.8'
-
 services:
   web:
     image: ghcr.io/zzbazzzbaz/judiciary-backend:latest
