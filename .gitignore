@@ -12,4 +12,27 @@ _chat
 
 # Node / Frontend
 node_modules/
+
+# Environment variables (敏感信息)
 .env
+
+# Database (不提交数据库文件)
+*.sqlite3
+db.sqlite3
+
+# Media files (用户上传的文件)
+judicial_system/media/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Docs and scripts (可选)
+docs/
+judicial_system/db_scripts/media/
