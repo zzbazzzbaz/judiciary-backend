@@ -33,6 +33,8 @@ RUN uv pip install --system -r pyproject.toml
 
 # 复制项目代码
 COPY judicial_system ./judicial_system
+# 复制 admin-html 静态文件目录
+COPY admin-html ./admin-html
 
 # 设置工作目录为 Django 项目目录
 WORKDIR /app/judicial_system

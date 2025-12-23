@@ -54,13 +54,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/image.tar
-
-      # 压缩镜像文件
-      - name: Compress image
-        run: |
-          gzip /tmp/image.tar
-          ls -lh /tmp/image.tar.gz
 
       # 配置 SSH
       - name: Setup SSH
@@ -70,28 +63,24 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ secrets.SERVER_PORT || 22 }} -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      # 传输镜像到服务器
-      - name: Transfer image to server
-        run: |
-          scp -P ${{ secrets.SERVER_PORT || 22 }} /tmp/image.tar.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/
-
-      # 在服务器上加载镜像并部署
+      # 在服务器上拉取镜像并部署
       - name: Deploy on server
         run: |
           ssh -p ${{ secrets.SERVER_PORT || 22 }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
             set -e
             cd /opt/judiciary-backend
 
-            # 加载镜像
-            echo "Loading Docker image..."
-            gunzip -c /tmp/image.tar.gz | sudo docker load
+            # 设置代理环境变量
+            export http_proxy=http://127.0.0.1:7890
+            export https_proxy=http://127.0.0.1:7890
 
-            # 重启服务（--pull never 使用本地镜像，不尝试拉取）
+            # 拉取最新镜像
+            echo "Pulling Docker image..."
+            sudo -E docker compose pull
+
+            # 重启服务
             echo "Restarting service..."
-            sudo docker compose up -d --pull never
-
-            # 清理临时文件
-            rm -f /tmp/image.tar.gz
+            sudo docker compose up -d
 
             # 输出状态
             echo "Deployment completed at $(date)"
