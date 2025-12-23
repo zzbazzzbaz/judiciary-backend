@@ -1,5 +1,5 @@
 # GitHub Actions 自动部署工作流
-# 构建镜像后直接传输到服务器，无需镜像仓库
+# 构建镜像推送到 GitHub，同时直接传输到服务器部署
 
 name: Build and Deploy
 
@@ -9,12 +9,19 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: judiciary-backend
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-deploy:
-    name: Build and Deploy
+  build-and-push:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.tag.outputs.tag }}
 
     steps:
       - name: Checkout repository
@@ -25,16 +32,35 @@ jobs:
         id: tag
         run: echo "tag=$(TZ='Asia/Shanghai' date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-      # 构建镜像（本地构建，不推送）
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ env.IMAGE_NAME }}:latest -t ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # 导出镜像为压缩文件
-      - name: Save Docker image
+      # 登录 GitHub Container Registry
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 构建并推送镜像到 ghcr.io
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
+
+      # 压缩镜像文件
+      - name: Compress image
         run: |
-          docker save ${{ env.IMAGE_NAME }}:latest | gzip > image.tar.gz
-          ls -lh image.tar.gz
+          gzip /tmp/image.tar
+          ls -lh /tmp/image.tar.gz
 
       # 配置 SSH
       - name: Setup SSH
@@ -47,7 +73,7 @@ jobs:
       # 传输镜像到服务器
       - name: Transfer image to server
         run: |
-          scp -P ${{ secrets.SERVER_PORT || 22 }} image.tar.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/
+          scp -P ${{ secrets.SERVER_PORT || 22 }} /tmp/image.tar.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/
 
       # 在服务器上加载镜像并部署
       - name: Deploy on server
