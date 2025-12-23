@@ -48,7 +48,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
-            type=sha,prefix=
+            type=raw,value={{date 'YYYYMMDD-HHmmss' tz='Asia/Shanghai'}}
 
       # 构建并推送镜像
       - name: Build and push Docker image
@@ -87,9 +87,6 @@ jobs:
 
             # 重启服务
             docker compose up -d
-
-            # 清理旧镜像
-            docker image prune -f
 
             # 输出部署状态
             echo "Deployment completed at $(date)"
