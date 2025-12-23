@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 测试和覆盖率
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# 本地开发文件
+*.log
+*.pot
+*.sqlite3
+db.sqlite3
+
+# 媒体和上传文件 (生产环境通过 volume 挂载)
+judicial_system/media/
+
+# 文档和聊天记录
+docs/
+_chat/
+*.md
+
+# 前端相关
+admin-html/
+node_modules/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量文件
+.env
+.env.*
+!.env.example
+
+# Docker 相关
+docker-compose*.yml
+!docker-compose.prod.yml

@@ -1,0 +1,61 @@
+# =============================================================================
+# 生产环境 Docker Compose 配置
+# 将此文件复制到服务器的 /opt/judiciary-backend/ 目录，重命名为 docker-compose.yml
+# =============================================================================
+
+version: '3.8'
+
+services:
+  web:
+    image: ghcr.io/zzbazzzbaz/judiciary-backend:latest
+    container_name: judiciary-backend
+    restart: always
+
+    # 端口映射 - 对应 nginx 反向代理配置
+    ports:
+      - "9073:8000"
+
+    # 数据持久化
+    volumes:
+      # SQLite 数据库文件 (如果使用 PostgreSQL/MySQL 则不需要)
+      - ./data/db.sqlite3:/app/judicial_system/db.sqlite3
+      # 媒体文件 (用户上传的文件)
+      - ./data/media:/app/judicial_system/media
+
+    # 环境变量配置
+    environment:
+      # Django 核心配置
+      - DJANGO_SECRET_KEY=django-insecure-5gzvjhuxw^2!x!zo6ux+skvm**%3cxn2m73^*z#ds_g=l_z)6p
+      - DJANGO_ALLOWED_HOSTS=judiciary.api.chatgqt.top,localhost,127.0.0.1
+      - DEBUG=False
+
+      # CORS 和 CSRF 配置
+      - CORS_ALLOWED_ORIGINS=
+      - CSRF_TRUSTED_ORIGINS=https://judiciary.api.chatgqt.top
+
+      # 后端基础 URL
+      - BACKEND_BASE_URL=https://judiciary.api.chatgqt.top
+
+      # 腾讯地图 API
+      - TENCENT_MAP_KEY=4H4BZ-OJACL-DKBPM-E7Y5H-5VSK5-KFFKK
+
+      # 日志级别
+      - DJANGO_LOG_LEVEL=INFO
+
+      # SSL (Nginx 已处理，无需重定向)
+      - SECURE_SSL_REDIRECT=False
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/admin/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
