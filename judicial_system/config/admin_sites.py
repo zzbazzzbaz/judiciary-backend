@@ -34,18 +34,14 @@ class GridManagerSite(AdminSite):
     index_title = "网格管理"
 
     def has_permission(self, request):
-        """允许网格负责人（必须有管理的网格）和管理员登录"""
+        """只允许网格负责人登录（必须有管理的网格）"""
         if not request.user.is_authenticated or not request.user.is_active:
             return False
 
         if not hasattr(request.user, 'role'):
             return False
 
-        # 管理员可以直接登录
-        if request.user.role == 'admin':
-            return True
-
-        # 网格管理员必须有管理的网格才能登录
+        # 只允许网格管理员登录，且必须有管理的网格
         if request.user.role == 'grid_manager':
             from apps.grids.models import Grid
             return Grid.objects.filter(current_manager=request.user, is_active=True).exists()
