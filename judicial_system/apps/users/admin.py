@@ -223,6 +223,8 @@ class ExcelImportMixin:
 class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
     """人员管理（用户/人员），支持Excel导入。"""
 
+    actions = ["reset_password"]
+
     resource_class = MediatorResource
     excel_template_file = "调解员导入模板.xlsx"
     change_list_template = "admin/users/user/change_list.html"
@@ -360,6 +362,15 @@ class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
             queryset = queryset.filter(role__in=[User.Role.ADMIN, User.Role.GRID_MANAGER])
 
         return queryset, use_distinct
+
+    @admin.action(description="重置密码")
+    def reset_password(self, request, queryset):
+        """批量重置选中用户的密码为 123456。"""
+        count = queryset.count()
+        for user in queryset:
+            user.set_password("123456")
+            user.save(update_fields=["password"])
+        self.message_user(request, f"已成功重置 {count} 个用户的密码为 123456", messages.SUCCESS)
 
 
 class UserAttachmentAdmin(admin.ModelAdmin):
