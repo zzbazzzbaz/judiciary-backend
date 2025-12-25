@@ -22,6 +22,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from utils.responses import error_response, success_response
+from utils.url_utils import get_absolute_url
 
 from ..models import User
 from ..serializers import (
@@ -152,8 +153,20 @@ class ProfileAPIView(APIView):
         serializer = ProfileUpdateSerializer(instance=request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()  # 保存并获取更新后的用户对象
+
+        if getattr(user, "avatar", None):
+            try:
+                avatar = get_absolute_url(user.avatar.url) if user.avatar else ""
+            except Exception:
+                avatar = ""
+        else:
+            avatar = ""
+
         return success_response(
             message="更新成功",
-            data={"id": user.id, "phone": user.phone},  # 返回修改后的手机号
+            data={"id": user.id, "phone": user.phone, "avatar": avatar},  # 返回修改后的手机号
         )
+
+    def post(self, request, *args, **kwargs):
+        return self.put(request, *args, **kwargs)
 

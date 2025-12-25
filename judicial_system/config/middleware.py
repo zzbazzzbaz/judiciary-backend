@@ -70,6 +70,7 @@ class DynamicSimpleUIMiddleware:
                             {"name": "文章分类", "icon": "fas fa-folder", "url": "/admin/content/category/"},
                             {"name": "文章列表", "icon": "fas fa-file-alt", "url": "/admin/content/article/"},
                             {"name": "活动列表", "icon": "fas fa-calendar-alt", "url": "/admin/content/activity/"},
+                            {"name": "学习日志", "icon": "fas fa-calendar-alt", "url": "/admin/content/articleviewlog/"},
                         ],
                     },
                     {

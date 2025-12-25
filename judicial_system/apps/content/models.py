@@ -66,6 +66,17 @@ class Article(models.Model):
     def __str__(self) -> str: return self.title
 
 
+class ArticleViewLog(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="view_logs", verbose_name="文章")
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="article_view_logs", verbose_name="人员")
+    viewed_at = models.DateTimeField("查看时间", auto_now_add=True)
+
+    class Meta:
+        db_table = "content_article_view_log"
+        verbose_name = "学习日志"
+        verbose_name_plural = verbose_name
+
+
 class Activity(models.Model):
     """活动表（content_activity）。"""
 

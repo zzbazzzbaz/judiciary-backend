@@ -12,6 +12,7 @@ from datetime import datetime
 
 from rest_framework import serializers
 
+from utils.url_utils import get_absolute_url
 from utils.validators import validate_password_strength, validate_phone
 
 from apps.cases.models import Task
@@ -79,7 +80,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["phone"]
+        fields = ["phone", "avatar"]
 
     def validate_phone(self, value):
         if value and not validate_phone(value):
@@ -90,6 +91,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     """个人信息详情。"""
 
+    avatar = serializers.SerializerMethodField()
     organization = OrganizationSimpleSerializer(read_only=True)
     # 使用网格序列化器返回详细信息
     grid = GridSerializer(read_only=True)
@@ -107,6 +109,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "gender",
             "id_card",
             "phone",
+            "avatar",
             "role",
             "organization",
             "grid",
@@ -117,6 +120,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "monthly_performance",
             "monthly_completed_tasks",
         ]
+
+    def get_avatar(self, obj: User) -> str:
+        if not obj.avatar:
+            return ""
+        try:
+            return get_absolute_url(obj.avatar.url)
+        except Exception:
+            return ""
 
     def get_monthly_performance(self, obj):
         """获取本月绩效分数。

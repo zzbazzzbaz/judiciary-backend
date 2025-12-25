@@ -106,6 +106,7 @@ class User(AbstractBaseUser):
     )
     id_card = models.CharField("身份证号", max_length=18, null=True, blank=True)
     phone = models.CharField("联系电话", max_length=20, null=True, blank=True)
+    avatar = models.ImageField("头像", upload_to="users/avatars/%Y/%m/", null=True, blank=True)
     organization = models.ForeignKey(
         Organization,
         null=True,

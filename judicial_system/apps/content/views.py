@@ -7,11 +7,11 @@ from django.db.models import Count, Exists, OuterRef
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from utils.responses import error_response, success_response
 
-from .models import Activity, Article, Category, Document, DocumentCategory
+from .models import Activity, Article, ArticleViewLog, Category, Document, DocumentCategory
 from .serializers import (
     ActivityDetailSerializer,
     ActivityListSerializer,
@@ -30,7 +30,7 @@ class ArticleViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
     - GET /api/v1/articles/{id}/
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     lookup_value_regex = r"\d+"
 
     def get_queryset(self):
@@ -68,6 +68,16 @@ class ArticleViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
     def retrieve(self, request, *args, **kwargs):
         article = self.get_object()
+        
+        # 记录查看日志
+        user = request.user
+        if user and user.is_authenticated:
+            ArticleViewLog.objects.get_or_create(
+                article=article,
+                user=user,
+                defaults={'viewed_at': timezone.now()}
+            )
+        
         return success_response(data=self.get_serializer(article).data)
 
 
@@ -196,7 +206,12 @@ class DocumentViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
 
-        category_id = request.query_params.get("category_id")
+        params = request.query_params
+        search = params.get("search")
+        category_id = params.get("category_id")
+
+        if search:
+            qs = qs.filter(name__icontains=search)
         if category_id and str(category_id).isdigit():
             qs = qs.filter(category_id=int(category_id))
 

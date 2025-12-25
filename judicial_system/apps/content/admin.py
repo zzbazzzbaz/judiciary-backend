@@ -3,7 +3,7 @@
 from django.contrib import admin
 
 from config.admin_sites import admin_site
-from .models import Activity, Article, Category, ContentAttachment, Document, DocumentCategory
+from .models import Activity, Article, ArticleViewLog, Category, ContentAttachment, Document, DocumentCategory
 
 
 class CategoryAdmin(admin.ModelAdmin):
@@ -61,9 +61,17 @@ class DocumentAdmin(admin.ModelAdmin):
     list_filter = ("category",)
 
 
+class ArticleViewLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "article", "user", "viewed_at")
+    search_fields = ("article__title", "user__username", "user__name")
+    list_filter = ("viewed_at",)
+    ordering = ("-viewed_at", "-id")
+
+
 # 注册到管理员后台
 admin_site.register(Category, CategoryAdmin)
 admin_site.register(Article, ArticleAdmin)
+admin_site.register(ArticleViewLog, ArticleViewLogAdmin)
 admin_site.register(ContentAttachment, ContentAttachmentAdmin)
 admin_site.register(Activity, ActivityAdmin)
 admin_site.register(Document, DocumentAdmin)
