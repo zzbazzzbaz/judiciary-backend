@@ -242,7 +242,7 @@ class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
 
     fieldsets = (
         ("账号信息", {"fields": ("username", "password")}),
-        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization", "role", "grid")}),
+        ("基本信息", {"fields": ("name", "gender", "id_card", "phone", "organization", "role", "grid", "avatar")}),
         ("状态", {"fields": ("is_active",)}),
         ("时间", {"fields": ("last_login", "created_at", "updated_at")}),
     )
@@ -256,6 +256,7 @@ class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
                     "username",
                     "name",
                     "role",
+                    "avatar",
                     "grid",
                     "organization",
                     "is_active",
@@ -470,6 +471,7 @@ admin_site.register(UserAttachment, UserAttachmentAdmin)
 admin_site.register(Organization, OrganizationAdmin)
 admin_site.register(TrainingRecord, TrainingRecordAdmin)
 admin_site.register(PerformanceScore, PerformanceScoreAdmin)
+
 
 # ==================== 网格管理员专用 Admin ====================
 
