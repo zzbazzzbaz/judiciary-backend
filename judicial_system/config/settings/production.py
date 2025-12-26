@@ -41,11 +41,18 @@ DATABASES = {
 # CORS 配置 (生产环境 - 指定允许的来源)
 # =============================================================================
 
+# 基础的 CORS 允许来源列表
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# 添加 PDF.js 预览器域名支持
+CORS_ALLOWED_ORIGINS.extend([
+    "https://mozilla.github.io",
+    "http://mozilla.github.io",
+])
 
 # 如果没有配置 CORS_ALLOWED_ORIGINS，则禁用 CORS
 CORS_ALLOW_ALL_ORIGINS = False
