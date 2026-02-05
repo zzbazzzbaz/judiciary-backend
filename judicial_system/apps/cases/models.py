@@ -243,3 +243,12 @@ class UnassignedTask(Task):
         proxy = True
         verbose_name = "待分配任务"
         verbose_name_plural = verbose_name
+
+
+class ArchivedTask(Task):
+    """已归档任务代理模型（用于归档管理）。"""
+
+    class Meta:
+        proxy = True
+        verbose_name = "任务归档"
+        verbose_name_plural = verbose_name

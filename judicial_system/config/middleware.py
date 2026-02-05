@@ -91,6 +91,13 @@ class DynamicSimpleUIMiddleware:
                         ],
                     },
                     {
+                        "name": "归档管理",
+                        "icon": "fas fa-archive",
+                        "models": [
+                            {"name": "任务归档", "icon": "fas fa-box-archive", "url": "/admin/cases/archivedtask/"},
+                        ],
+                    },
+                    {
                         "name": "系统配置",
                         "icon": "fas fa-cog",
                         "models": [

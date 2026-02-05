@@ -26,7 +26,7 @@ def get_attachments_from_ids(ids_str: str) -> list:
 
 from utils.code_generator import generate_task_code
 
-from .models import Task, TaskType, Town, UnassignedTask
+from .models import ArchivedTask, Task, TaskType, Town, UnassignedTask
 
 
 class TaskAdminForm(forms.ModelForm):
@@ -60,6 +60,7 @@ class TaskAdmin(admin.ModelAdmin):
     """任务管理（纠纷/法律援助、分派与调解结果）。"""
 
     form = TaskAdminForm
+    actions = ["archive_tasks"]
 
     list_display = (
         "id",
@@ -78,7 +79,6 @@ class TaskAdmin(admin.ModelAdmin):
     list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
     list_filter = ("task_type", "status", "grid", "reported_at")
-    date_hierarchy = "reported_at"
     ordering = ("-reported_at", "-id")
 
     readonly_fields = ("code", "status", "reported_at", "created_at", "updated_at")
@@ -120,6 +120,23 @@ class TaskAdmin(admin.ModelAdmin):
         ),
         ("时间", {"fields": ("created_at", "updated_at")}),
     )
+
+    def get_queryset(self, request):
+        """排除已归档的任务。"""
+        qs = super().get_queryset(request)
+        return qs.exclude(status=Task.Status.ARCHIVED)
+
+    @admin.action(description="归档选中的已完成任务")
+    def archive_tasks(self, request, queryset):
+        """将已完成的任务归档。"""
+        # 只归档状态为已完成的任务
+        completed_tasks = queryset.filter(status=Task.Status.COMPLETED)
+        count = completed_tasks.update(status=Task.Status.ARCHIVED)
+        
+        if count:
+            self.message_user(request, f"成功归档 {count} 条任务")
+        else:
+            self.message_user(request, "没有可归档的任务（只有已完成状态的任务可以归档）", level="warning")
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "grid":
@@ -244,10 +261,62 @@ class TownAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "id")
 
 
+class ArchivedTaskAdmin(admin.ModelAdmin):
+    """已归档任务管理（只读）。"""
+
+    list_display = (
+        "id",
+        "code",
+        "task_type",
+        "party_name",
+        "grid",
+        "reporter",
+        "assigned_mediator",
+        "reported_at",
+        "completed_at",
+        "view_detail_action",
+    )
+    list_display_links = None
+    list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
+    search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
+    list_filter = ("task_type", "grid", "reported_at", "completed_at")
+    ordering = ("-completed_at", "-id")
+
+    def get_queryset(self, request):
+        """只显示已归档的任务。"""
+        qs = super().get_queryset(request)
+        return qs.filter(status=Task.Status.ARCHIVED)
+
+    def view_detail_action(self, obj):
+        """查看详情按钮。"""
+        from django.utils.html import format_html
+        return format_html(
+            '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
+            'border-radius:4px;text-decoration:none;font-size:12px;" '
+            'href="{}">详情</a>',
+            f"/admin/cases/task/{obj.pk}/detail/"
+        )
+    view_detail_action.short_description = "操作"
+    view_detail_action.allow_tags = True
+
+    def has_add_permission(self, request):
+        """不允许新增。"""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """不允许编辑。"""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """不允许删除。"""
+        return False
+
+
 # 注册到管理员后台
 admin_site.register(TaskType, TaskTypeAdmin)
 admin_site.register(Town, TownAdmin)
 admin_site.register(Task, TaskAdmin)
+admin_site.register(ArchivedTask, ArchivedTaskAdmin)
 
 # ==================== 网格管理员专用 Admin ====================
 
