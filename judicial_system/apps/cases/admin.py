@@ -72,14 +72,14 @@ class TaskAdmin(admin.ModelAdmin):
         "reporter",
         "assigned_mediator",
         "reported_at",
-        "assigned_at",
-        "completed_at",
         "view_detail_action",
     )
     list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
     list_filter = ("task_type", "status", "grid", "reported_at")
     ordering = ("-reported_at", "-id")
+    list_per_page = 20
+    show_full_result_count = True
 
     readonly_fields = ("code", "status", "reported_at", "created_at", "updated_at")
     fieldsets = (
@@ -226,13 +226,22 @@ class TaskAdmin(admin.ModelAdmin):
         complete_images = get_attachments_from_ids(task.complete_image_ids)
         complete_files = get_attachments_from_ids(task.complete_file_ids)
 
+        # 根据来源确定返回链接
+        from_page = request.GET.get("from", "")
+        if from_page == "archived":
+            back_url = "/admin/cases/archivedtask/"
+            back_text = "返回任务归档"
+        else:
+            back_url = "/admin/cases/task/"
+            back_text = "返回任务列表"
+
         context = {
             "title": f"任务详情: {task.code}",
             "task": task,
             "opts": self.model._meta,
             "has_view_permission": True,
-            "back_url": "/admin/cases/task/",
-            "back_text": "返回任务列表",
+            "back_url": back_url,
+            "back_text": back_text,
             "report_images": report_images,
             "report_files": report_files,
             "complete_images": complete_images,
@@ -262,54 +271,105 @@ class TownAdmin(admin.ModelAdmin):
 
 
 class ArchivedTaskAdmin(admin.ModelAdmin):
-    """已归档任务管理（只读）。"""
+    """已归档任务管理（只读，自定义列表页）。"""
 
-    list_display = (
-        "id",
-        "code",
-        "task_type",
-        "party_name",
-        "grid",
-        "reporter",
-        "assigned_mediator",
-        "reported_at",
-        "completed_at",
-        "view_detail_action",
-    )
-    list_display_links = None
-    list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
-    search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
-    list_filter = ("task_type", "grid", "reported_at", "completed_at")
-    ordering = ("-completed_at", "-id")
-
-    def get_queryset(self, request):
-        """只显示已归档的任务。"""
-        qs = super().get_queryset(request)
-        return qs.filter(status=Task.Status.ARCHIVED)
-
-    def view_detail_action(self, obj):
-        """查看详情按钮。"""
-        from django.utils.html import format_html
-        return format_html(
-            '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
-            'border-radius:4px;text-decoration:none;font-size:12px;" '
-            'href="{}">详情</a>',
-            f"/admin/cases/task/{obj.pk}/detail/"
-        )
-    view_detail_action.short_description = "操作"
-    view_detail_action.allow_tags = True
+    change_list_template = "admin/cases/archivedtask/change_list.html"
 
     def has_add_permission(self, request):
-        """不允许新增。"""
         return False
 
     def has_change_permission(self, request, obj=None):
-        """不允许编辑。"""
         return False
 
     def has_delete_permission(self, request, obj=None):
-        """不允许删除。"""
         return False
+
+    def changelist_view(self, request, extra_context=None):
+        """自定义归档任务列表视图。"""
+        from django.core.paginator import Paginator
+        from django.db.models import Count, Q
+
+        # 获取所有已归档任务的基础查询集
+        base_qs = Task.objects.filter(status=Task.Status.ARCHIVED).select_related(
+            "grid", "reporter", "assigned_mediator", "task_type", "town"
+        )
+
+        # 统计数据：按任务类型分组
+        task_types = TaskType.objects.filter(is_active=True).order_by("sort_order", "id")
+        stats = []
+        colors = ["purple", "green", "orange", "pink", "indigo", "teal"]
+        icons = [
+            "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",  # 勾选
+            "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",  # 书
+            "M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z",  # 聊天
+        ]
+        for i, tt in enumerate(task_types):
+            count = base_qs.filter(task_type=tt).count()
+            stats.append({
+                "id": tt.id,
+                "name": tt.name,
+                "count": count,
+                "color": colors[i % len(colors)],
+                "icon": icons[i % len(icons)],
+            })
+
+        total_count = base_qs.count()
+
+        # 获取筛选参数
+        current_task_type = request.GET.get("task_type")
+        if current_task_type:
+            try:
+                current_task_type = int(current_task_type)
+            except (ValueError, TypeError):
+                current_task_type = None
+
+        search_query = request.GET.get("q", "").strip()
+        current_grid = request.GET.get("grid")
+        if current_grid:
+            try:
+                current_grid = int(current_grid)
+            except (ValueError, TypeError):
+                current_grid = None
+
+        # 应用筛选
+        qs = base_qs
+        if current_task_type:
+            qs = qs.filter(task_type_id=current_task_type)
+        if search_query:
+            qs = qs.filter(
+                Q(code__icontains=search_query) |
+                Q(party_name__icontains=search_query) |
+                Q(party_phone__icontains=search_query)
+            )
+        if current_grid:
+            qs = qs.filter(grid_id=current_grid)
+
+        qs = qs.order_by("-completed_at", "-id")
+
+        # 分页
+        paginator = Paginator(qs, 20)
+        page_number = request.GET.get("page", 1)
+        page_obj = paginator.get_page(page_number)
+
+        # 获取网格列表用于筛选
+        grids = Grid.objects.filter(is_active=True).order_by("name")
+
+        from django.shortcuts import render
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "任务归档",
+            "stats": stats,
+            "total_count": total_count,
+            "current_task_type": current_task_type,
+            "search_query": search_query,
+            "current_grid": current_grid,
+            "grids": grids,
+            "tasks": page_obj.object_list,
+            "page_obj": page_obj,
+            "opts": self.model._meta,
+        }
+        return render(request, self.change_list_template, context)
 
 
 # 注册到管理员后台
