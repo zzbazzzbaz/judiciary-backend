@@ -8,22 +8,59 @@ Cases 模块模型
 from django.db import models
 
 
+class TaskType(models.Model):
+    """任务类型表（cases_task_type）。"""
+
+    name = models.CharField("类型名称", max_length=50, unique=True)
+    code = models.CharField("类型编码", max_length=30, unique=True)
+    description = models.TextField("描述", blank=True, default="")
+    is_active = models.BooleanField("是否启用", default=True)
+    sort_order = models.IntegerField("排序", default=0)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "cases_task_type"
+        verbose_name = "任务类型"
+        verbose_name_plural = verbose_name
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Town(models.Model):
+    """所属镇表（cases_town）。"""
+
+    name = models.CharField("镇名称", max_length=100, unique=True)
+    code = models.CharField("镇编码", max_length=30, unique=True)
+    description = models.TextField("描述", blank=True, default="")
+    is_active = models.BooleanField("是否启用", default=True)
+    sort_order = models.IntegerField("排序", default=0)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "cases_town"
+        verbose_name = "所属镇"
+        verbose_name_plural = verbose_name
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Task(models.Model):
     """任务表（cases_task）。"""
 
-    class Type(models.TextChoices):
-        """任务类型（dispute/legal_aid）。"""
-
-        DISPUTE = "dispute", "纠纷"
-        LEGAL_AID = "legal_aid", "法律援助"
-
     class Status(models.TextChoices):
-        """状态（reported/assigned/processing/completed）。"""
+        """状态（reported/assigned/processing/completed/archived）。"""
 
         REPORTED = "reported", "已上报"
         ASSIGNED = "assigned", "已分配"
         PROCESSING = "processing", "进行中"
         COMPLETED = "completed", "已完成"
+        ARCHIVED = "archived", "已归档"
 
     class HandleMethod(models.TextChoices):
         """处理方式（onsite/online）。"""
@@ -40,7 +77,22 @@ class Task(models.Model):
 
     # 基本信息
     code = models.CharField("任务编号", max_length=30, unique=True)
-    type = models.CharField("任务类型", max_length=20, choices=Type.choices)
+    task_type = models.ForeignKey(
+        TaskType,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tasks",
+        verbose_name="任务类型",
+    )
+    town = models.ForeignKey(
+        Town,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tasks",
+        verbose_name="所属镇",
+    )
     status = models.CharField(
         "状态",
         max_length=20,

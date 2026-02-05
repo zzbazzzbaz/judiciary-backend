@@ -38,24 +38,26 @@ DATABASES = {
 
 
 # =============================================================================
-# CORS 配置 (生产环境 - 指定允许的来源)
+# CORS 配置 (生产环境 - 通过环境变量控制)
 # =============================================================================
 
-# 基础的 CORS 允许来源列表
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
-    if origin.strip()
-]
+# 从环境变量读取 CORS 配置
+CORS_ALLOW_ALL_ORIGINS = os.environ.get("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"
 
-# 添加 PDF.js 预览器域名支持
-CORS_ALLOWED_ORIGINS.extend([
-    "https://mozilla.github.io",
-    "http://mozilla.github.io",
-])
+# 如果不是全部允许，则配置具体域名列表
+if not CORS_ALLOW_ALL_ORIGINS:
+    # 基础的 CORS 允许来源列表
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
 
-# 如果没有配置 CORS_ALLOWED_ORIGINS，则禁用 CORS
-CORS_ALLOW_ALL_ORIGINS = False
+    # 添加 PDF.js 预览器域名支持
+    CORS_ALLOWED_ORIGINS.extend([
+        "https://mozilla.github.io",
+        "http://mozilla.github.io",
+    ])
 
 
 # =============================================================================
@@ -67,13 +69,6 @@ CSRF_TRUSTED_ORIGINS = [
     for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 ]
-
-
-# =============================================================================
-# JWT 配置 (生产环境)
-# =============================================================================
-
-SIMPLE_JWT["SIGNING_KEY"] = SECRET_KEY
 
 
 # =============================================================================

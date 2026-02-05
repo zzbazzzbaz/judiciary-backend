@@ -36,3 +36,4 @@ Thumbs.db
 # Docs and scripts (可选)
 docs/
 judicial_system/db_scripts/media/
+cache/

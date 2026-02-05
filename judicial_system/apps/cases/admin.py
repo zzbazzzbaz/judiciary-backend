@@ -26,7 +26,7 @@ def get_attachments_from_ids(ids_str: str) -> list:
 
 from utils.code_generator import generate_task_code
 
-from .models import Task, UnassignedTask
+from .models import Task, TaskType, Town, UnassignedTask
 
 
 class TaskAdminForm(forms.ModelForm):
@@ -64,7 +64,7 @@ class TaskAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "code",
-        "type",
+        "task_type",
         "status",
         "party_name",
         "grid",
@@ -75,15 +75,15 @@ class TaskAdmin(admin.ModelAdmin):
         "completed_at",
         "view_detail_action",
     )
-    list_select_related = ("grid", "reporter", "assigned_mediator")
+    list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
-    list_filter = ("type", "status", "grid", "reported_at")
+    list_filter = ("task_type", "status", "grid", "reported_at")
     date_hierarchy = "reported_at"
     ordering = ("-reported_at", "-id")
 
-    readonly_fields = ("code", "type", "status", "reported_at", "created_at", "updated_at")
+    readonly_fields = ("code", "status", "reported_at", "created_at", "updated_at")
     fieldsets = (
-        ("任务信息", {"fields": ("code", "type", "status", "grid", "description", "amount")}),
+        ("任务信息", {"fields": ("code", "task_type", "town", "status", "grid", "description", "amount")}),
         ("当事人信息", {"fields": ("party_name", "party_phone", "party_address")}),
         (
             "上报信息",
@@ -156,7 +156,8 @@ class TaskAdmin(admin.ModelAdmin):
 
         last_error: IntegrityError | None = None
         for _ in range(3):
-            obj.code = generate_task_code(task_type=obj.type)
+            task_type_code = obj.task_type.code if obj.task_type else "task"
+            obj.code = generate_task_code(task_type=task_type_code)
             try:
                 with transaction.atomic():
                     return super().save_model(request, obj, form, change)
@@ -223,7 +224,29 @@ class TaskAdmin(admin.ModelAdmin):
         return render(request, "admin/cases/task/detail.html", context)
 
 
+class TaskTypeAdmin(admin.ModelAdmin):
+    """任务类型管理。"""
+
+    list_display = ("id", "name", "code", "is_active", "sort_order", "created_at")
+    list_editable = ("is_active", "sort_order")
+    search_fields = ("name", "code")
+    list_filter = ("is_active",)
+    ordering = ("sort_order", "id")
+
+
+class TownAdmin(admin.ModelAdmin):
+    """所属镇管理。"""
+
+    list_display = ("id", "name", "code", "is_active", "sort_order", "created_at")
+    list_editable = ("is_active", "sort_order")
+    search_fields = ("name", "code")
+    list_filter = ("is_active",)
+    ordering = ("sort_order", "id")
+
+
 # 注册到管理员后台
+admin_site.register(TaskType, TaskTypeAdmin)
+admin_site.register(Town, TownAdmin)
 admin_site.register(Task, TaskAdmin)
 
 # ==================== 网格管理员专用 Admin ====================
@@ -240,7 +263,7 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "code",
-        "type",
+        "task_type",
         "status",
         "party_name",
         "reporter",
@@ -249,9 +272,9 @@ class GridManagerTaskAdmin(admin.ModelAdmin):
         "view_detail_action",
     )
     list_display_links = None  # 禁用ID点击进入详情
-    list_select_related = ("grid", "reporter", "assigned_mediator")
+    list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
-    list_filter = ("type", "status", "reported_at")
+    list_filter = ("task_type", "status", "reported_at")
     date_hierarchy = "reported_at"
     ordering = ("-reported_at", "-id")
 
@@ -373,16 +396,16 @@ class GridManagerUnassignedTaskAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "code",
-        "type",
+        "task_type",
         "party_name",
         "reporter",
         "reported_at",
         "action_buttons",
     )
     list_display_links = None  # 禁用ID点击进入详情
-    list_select_related = ("grid", "reporter")
+    list_select_related = ("grid", "reporter", "task_type")
     search_fields = ("code", "party_name", "party_phone", "reporter__name")
-    list_filter = ("type", "reported_at")
+    list_filter = ("task_type", "reported_at")
     date_hierarchy = "reported_at"
     ordering = ("-reported_at", "-id")
 

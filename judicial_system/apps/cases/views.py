@@ -14,13 +14,15 @@ from utils.responses import error_response, success_response
 
 from apps.users.models import User
 
-from .models import Task
+from .models import Task, TaskType, Town
 from .serializers import (
     TaskCompleteSerializer,
     TaskCreateSerializer,
     TaskDetailSerializer,
     TaskListSerializer,
     TaskProcessSerializer,
+    TaskTypeSerializer,
+    TownSerializer,
 )
 
 
@@ -41,7 +43,7 @@ class TaskViewSet(
     """
 
     queryset = (
-        Task.objects.select_related("grid", "reporter", "assigner", "assigned_mediator")
+        Task.objects.select_related("grid", "reporter", "assigner", "assigned_mediator", "task_type", "town")
         .all()
         .order_by("-reported_at")
     )
@@ -101,7 +103,7 @@ class TaskViewSet(
         if search:
             qs = qs.filter(Q(code__icontains=search) | Q(party_name__icontains=search))
         if task_type:
-            qs = qs.filter(type=task_type)
+            qs = qs.filter(task_type_id=task_type)
         if status_:
             qs = qs.filter(status=status_)
 
@@ -131,7 +133,8 @@ class TaskViewSet(
             data={
                 "id": task.id,
                 "code": task.code,
-                "type": task.type,
+                "task_type": task.task_type.name if task.task_type else None,
+                "town": task.town.name if task.town else None,
                 "status": task.status,
                 "party_name": task.party_name,
                 "reported_at": task.reported_at,
@@ -244,7 +247,7 @@ class TaskViewSet(
         if search:
             qs = qs.filter(Q(code__icontains=search) | Q(party_name__icontains=search))
         if task_type:
-            qs = qs.filter(type=task_type)
+            qs = qs.filter(task_type_id=task_type)
         if status_:
             qs = qs.filter(status=status_)
 
@@ -274,6 +277,36 @@ from rest_framework.views import APIView
 from .serializers import TaskListSerializer
 
 
+class TaskTypeListView(APIView):
+    """
+    任务类型列表接口
+
+    - GET /api/v1/tasks/task-types/
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        task_types = TaskType.objects.filter(is_active=True).order_by("sort_order", "id")
+        serializer = TaskTypeSerializer(task_types, many=True)
+        return success_response(data=serializer.data)
+
+
+class TownListView(APIView):
+    """
+    所属镇列表接口
+
+    - GET /api/v1/tasks/towns/
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        towns = Town.objects.filter(is_active=True).order_by("sort_order", "id")
+        serializer = TownSerializer(towns, many=True)
+        return success_response(data=serializer.data)
+
+
 class GridTaskListView(APIView):
     """
     任务列表接口（无需认证、不分页）
@@ -287,7 +320,7 @@ class GridTaskListView(APIView):
     def get(self, request):
         grid_id = request.query_params.get("grid_id")
 
-        tasks = Task.objects.select_related("grid", "reporter", "assigned_mediator")
+        tasks = Task.objects.select_related("grid", "reporter", "assigned_mediator", "task_type", "town")
         if grid_id:
             tasks = tasks.filter(grid_id=grid_id)
         tasks = tasks.order_by("-reported_at")

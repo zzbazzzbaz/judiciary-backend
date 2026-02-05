@@ -50,6 +50,8 @@ class DynamicSimpleUIMiddleware:
                             {"name": "地图", "icon": "fas fa-map", "url": "/admin-html/map-dashboard.html"},
                             {"name": "网格", "icon": "fas fa-border-all", "url": "/admin/grids/grid/"},
                             {"name": "任务", "icon": "fas fa-tasks", "url": "/admin/cases/task/"},
+                            {"name": "任务类型", "icon": "fas fa-tags", "url": "/admin/cases/tasktype/"},
+                            {"name": "所属镇", "icon": "fas fa-map-pin", "url": "/admin/cases/town/"},
                             {"name": "任务附件", "icon": "fas fa-file", "url": "/admin/common/attachment/"},
                         ],
                     },

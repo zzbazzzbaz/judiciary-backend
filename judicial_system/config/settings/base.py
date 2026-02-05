@@ -5,7 +5,6 @@ Django 基础配置
 
 import os
 from pathlib import Path
-from datetime import timedelta
 
 # 项目根目录 (judicial_system/)
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -137,7 +136,7 @@ AUTH_USER_MODEL = "users.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "utils.authentication.SimpleTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -152,15 +151,24 @@ REST_FRAMEWORK = {
 
 
 # =============================================================================
-# Simple JWT 配置
+# Token 配置
 # =============================================================================
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": False,
-    "ALGORITHM": "HS256",
-    "AUTH_HEADER_TYPES": ("Bearer",),
+TOKEN_SETTINGS = {
+    "ACCESS_TOKEN_LIFETIME": 2 * 60 * 60,  # 2小时（秒）
+    "REFRESH_TOKEN_LIFETIME": 7 * 24 * 60 * 60,  # 7天（秒）
+}
+
+
+# =============================================================================
+# 缓存配置 (文件缓存，支持多进程共享，用于存储 Token)
+# =============================================================================
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": BASE_DIR / "cache",
+    }
 }
 
 

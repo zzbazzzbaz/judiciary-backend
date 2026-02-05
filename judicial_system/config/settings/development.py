@@ -58,13 +58,10 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 # =============================================================================
-# JWT 配置 (开发环境 Token 有效期更长)
+# Token 配置 (开发环境 Token 有效期更长)
 # =============================================================================
 
-from datetime import timedelta  # noqa: E402
-
-SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"] = timedelta(days=2)
-SIMPLE_JWT["SIGNING_KEY"] = SECRET_KEY
+TOKEN_SETTINGS["ACCESS_TOKEN_LIFETIME"] = 2 * 24 * 60 * 60  # 2天
 
 
 # =============================================================================

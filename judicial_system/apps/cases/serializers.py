@@ -18,7 +18,7 @@ from apps.common.models import Attachment
 from apps.grids.models import Grid
 from apps.users.models import User
 
-from .models import Task
+from .models import Task, TaskType, Town
 
 
 class UserNameSerializer(serializers.ModelSerializer):
@@ -37,9 +37,27 @@ class GridSimpleSerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 
+class TaskTypeSerializer(serializers.ModelSerializer):
+    """任务类型序列化器。"""
+
+    class Meta:
+        model = TaskType
+        fields = ["id", "name", "code", "description"]
+
+
+class TownSerializer(serializers.ModelSerializer):
+    """所属镇序列化器。"""
+
+    class Meta:
+        model = Town
+        fields = ["id", "name", "code", "description"]
+
+
 class TaskListSerializer(serializers.ModelSerializer):
     """任务列表项"""
 
+    task_type_name = serializers.CharField(source="task_type.name", read_only=True, default=None)
+    town_name = serializers.CharField(source="town.name", read_only=True, default=None)
     grid_name = serializers.CharField(source="grid.name", read_only=True)
     reporter_name = serializers.CharField(source="reporter.name", read_only=True)
     assigned_mediator_name = serializers.CharField(source="assigned_mediator.name", read_only=True)
@@ -49,7 +67,8 @@ class TaskListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "code",
-            "type",
+            "task_type_name",
+            "town_name",
             "status",
             "party_name",
             "party_phone",
@@ -69,6 +88,8 @@ class TaskListSerializer(serializers.ModelSerializer):
 class TaskDetailSerializer(serializers.ModelSerializer):
     """任务详情。"""
 
+    task_type = TaskTypeSerializer(read_only=True)
+    town = TownSerializer(read_only=True)
     grid = GridSimpleSerializer(read_only=True)
     reporter = UserNameSerializer(read_only=True)
     assigner = UserNameSerializer(read_only=True)
@@ -84,7 +105,8 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "code",
-            "type",
+            "task_type",
+            "town",
             "status",
             "description",
             "amount",
@@ -159,10 +181,14 @@ def _validate_attachment_ids_exist(ids_str: str):
 class TaskCreateSerializer(serializers.ModelSerializer):
     """上报任务（调解员）。"""
 
+    task_type_id = serializers.IntegerField(write_only=True, required=True)
+    town_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
     class Meta:
         model = Task
         fields = [
-            "type",
+            "task_type_id",
+            "town_id",
             "description",
             "party_name",
             "party_phone",
@@ -175,9 +201,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             "report_file_ids",
         ]
 
-    def validate_type(self, value):
-        if value not in {Task.Type.DISPUTE, Task.Type.LEGAL_AID}:
-            raise serializers.ValidationError("任务类型不正确")
+    def validate_task_type_id(self, value):
+        if not TaskType.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("任务类型不存在或已禁用")
+        return value
+
+    def validate_town_id(self, value):
+        if value and not Town.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("所属镇不存在或已禁用")
         return value
 
     def validate_party_name(self, value):
@@ -208,9 +239,17 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("您尚未分配到任何网格，无法上报任务")
         validated_data["grid"] = reporter.grid
 
+        # 处理外键字段
+        task_type_id = validated_data.pop("task_type_id")
+        validated_data["task_type_id"] = task_type_id
+        
+        town_id = validated_data.pop("town_id", None)
+        if town_id:
+            validated_data["town_id"] = town_id
+
         # 生成任务编号
-        task_type = validated_data["type"]
-        validated_data["code"] = generate_task_code(task_type=task_type)
+        task_type = TaskType.objects.get(id=task_type_id)
+        validated_data["code"] = generate_task_code(task_type=task_type.code)
 
         return Task.objects.create(**validated_data)
 

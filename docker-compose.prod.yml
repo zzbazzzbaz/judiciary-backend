@@ -27,8 +27,8 @@ services:
       - DJANGO_ALLOWED_HOSTS=judiciary.api.chatgqt.top,localhost,127.0.0.1
       - DEBUG=False
 
-      # CORS 和 CSRF 配置
-      - CORS_ALLOWED_ORIGINS=
+      # CORS 和 CSRF 配置 (全部开放 - 注意安全风险)
+      - CORS_ALLOW_ALL_ORIGINS=True
       - CSRF_TRUSTED_ORIGINS=https://judiciary.api.chatgqt.top
 
       # 后端基础 URL

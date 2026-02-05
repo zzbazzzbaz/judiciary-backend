@@ -12,16 +12,12 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
-from django.conf import settings
 from django.utils import timezone
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from utils.responses import error_response, success_response
+from utils.token_manager import TokenManager
 from utils.url_utils import get_absolute_url
 
 from ..models import User
@@ -32,16 +28,6 @@ from ..serializers import (
     TokenRefreshSerializer,
     UserProfileSerializer,
 )
-
-
-def _access_expires_in_seconds() -> int:
-    """获取 access token 过期秒数（与 SIMPLE_JWT 配置保持一致）。"""
-
-    lifetime = getattr(settings, "SIMPLE_JWT", {}).get("ACCESS_TOKEN_LIFETIME")
-    if isinstance(lifetime, timedelta):
-        return int(lifetime.total_seconds())
-    # 需求文档默认 2 小时
-    return 2 * 60 * 60
 
 
 class LoginAPIView(APIView):
@@ -62,9 +48,8 @@ class LoginAPIView(APIView):
         if not user.is_active:
             return error_response("账号已被禁用", code=403, http_status=403)
 
-        refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
+        # 生成 Token
+        tokens = TokenManager.create_tokens(user.id)
 
         # 记录最后登录时间，便于管理端追踪
         user.last_login = timezone.now()
@@ -73,9 +58,9 @@ class LoginAPIView(APIView):
         return success_response(
             message="登录成功",
             data={
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "expires_in": _access_expires_in_seconds(),
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "expires_in": tokens["expires_in"],
                 "user": {
                     "id": user.id,
                     "username": user.username,
@@ -88,12 +73,16 @@ class LoginAPIView(APIView):
 
 
 class LogoutAPIView(APIView):
-    """用户登出（当前实现为前端删除 Token）。"""
+    """用户登出（撤销 Token）。"""
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        # 需求文档提到可选黑名单/Redis；此处按最小实现返回成功即可。
+        # 获取当前 Token 并撤销
+        token = getattr(request, "auth_token", None)
+        if token:
+            TokenManager.revoke_token(token)
+
         return success_response(message="登出成功")
 
 
@@ -107,15 +96,18 @@ class TokenRefreshAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         refresh_token = serializer.validated_data["refresh_token"]
-        try:
-            token = RefreshToken(refresh_token)
-            access_token = str(token.access_token)
-        except TokenError:
+
+        # 刷新 Token
+        result = TokenManager.refresh_access_token(refresh_token)
+        if not result:
             return error_response("refresh_token 无效或已过期", code=401, http_status=401)
 
         return success_response(
             message="刷新成功",
-            data={"access_token": access_token, "expires_in": _access_expires_in_seconds()},
+            data={
+                "access_token": result["access_token"],
+                "expires_in": result["expires_in"],
+            },
         )
 
 
