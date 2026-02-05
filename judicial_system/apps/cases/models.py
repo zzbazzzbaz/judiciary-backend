@@ -252,3 +252,29 @@ class ArchivedTask(Task):
         proxy = True
         verbose_name = "任务归档"
         verbose_name_plural = verbose_name
+
+
+class CaseArchive(models.Model):
+    """案件归档表（cases_case_archive）。"""
+
+    serial_number = models.CharField("序号", max_length=50, blank=True, default="")
+    applicant = models.CharField("申请人", max_length=100)
+    respondent = models.CharField("被申请人", max_length=100)
+    case_reason = models.TextField("案由")
+    acceptance_time = models.DateField("受理时间")
+    handler = models.CharField("承办人员", max_length=100)
+    applicable_procedure = models.TextField("适用程序")
+    closure_time = models.DateField("结案时间")
+    closure_method = models.TextField("结案方式")
+    case_number = models.TextField("案号")
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "cases_case_archive"
+        verbose_name = "案件归档"
+        verbose_name_plural = verbose_name
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.case_number} - {self.applicant}"

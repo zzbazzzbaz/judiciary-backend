@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+import os
+
 from django import forms
-from django.contrib import admin
+from django.conf import settings
+from django.contrib import admin, messages
 from django.db import IntegrityError, transaction
+from django.http import FileResponse
+from django.shortcuts import redirect
+from django.urls import path
 from django.utils import timezone
+from django.utils.html import format_html
+from import_export.admin import ImportMixin
+from import_export.formats.base_formats import XLSX
+from import_export.results import RowResult
 
 from apps.common.models import Attachment
 from apps.grids.models import Grid
@@ -26,7 +36,8 @@ def get_attachments_from_ids(ids_str: str) -> list:
 
 from utils.code_generator import generate_task_code
 
-from .models import ArchivedTask, Task, TaskType, Town, UnassignedTask
+from .models import ArchivedTask, CaseArchive, Task, TaskType, Town, UnassignedTask
+from .resources import CaseArchiveResource
 
 
 class TaskAdminForm(forms.ModelForm):
@@ -372,11 +383,144 @@ class ArchivedTaskAdmin(admin.ModelAdmin):
         return render(request, self.change_list_template, context)
 
 
+class ExcelImportExportMixin:
+    """案件归档 Excel 导入导出 Mixin，提供模板下载和友好错误提示。"""
+
+    excel_template_file = ""  # 子类需要设置模板文件名
+
+    def get_urls(self):
+        """添加模板下载 URL。"""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "download-template/",
+                self.admin_site.admin_view(self.download_template_view),
+                name=f"{self.model._meta.app_label}_{self.model._meta.model_name}_download_template",
+            ),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        """下载导入模板文件。"""
+        if not self.excel_template_file:
+            messages.error(request, "模板文件未配置")
+            return redirect("../")
+
+        template_path = getattr(settings, "IMPORT_TEMPLATES_DIR", None)
+        if not template_path:
+            messages.error(request, "模板目录未配置")
+            return redirect("../")
+
+        file_path = os.path.join(template_path, self.excel_template_file)
+        if not os.path.exists(file_path):
+            messages.error(request, f"模板文件不存在: {self.excel_template_file}")
+            return redirect("../")
+
+        response = FileResponse(
+            open(file_path, "rb"),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        from urllib.parse import quote
+        encoded_filename = quote(self.excel_template_file)
+        response["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
+        return response
+
+    def get_import_formats(self):
+        """只支持 Excel 格式。"""
+        return [XLSX]
+
+    def generate_log_entries(self, result, request):
+        """生成导入日志并显示详细错误信息。"""
+        if result.has_errors():
+            # 收集所有错误信息
+            error_messages = []
+            for row_errors in result.row_errors():
+                row_number, errors = row_errors
+                for error in errors:
+                    error_msg = str(error.error)
+                    error_messages.append(f"第 {row_number + 1} 行: {error_msg}")
+
+            # 显示错误摘要
+            if error_messages:
+                error_summary = "<br>".join(error_messages[:10])  # 最多显示10条
+                if len(error_messages) > 10:
+                    error_summary += f"<br>...还有 {len(error_messages) - 10} 条错误"
+                messages.error(
+                    request,
+                    format_html(
+                        "导入失败，共 {} 条错误：<br>{}",
+                        len(error_messages),
+                        format_html(error_summary),
+                    ),
+                )
+        else:
+            # 统计导入结果
+            new_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_NEW)
+            update_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_UPDATE)
+            skip_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_SKIP)
+
+            if new_count > 0 or update_count > 0:
+                messages.success(
+                    request,
+                    f"导入成功！新增 {new_count} 条，更新 {update_count} 条，跳过 {skip_count} 条。",
+                )
+
+        return super().generate_log_entries(result, request)
+
+
+class CaseArchiveAdmin(ImportMixin, ExcelImportExportMixin, admin.ModelAdmin):
+    """案件归档管理，支持Excel导入导出。"""
+
+    resource_class = CaseArchiveResource
+    excel_template_file = "案件归档导入模板.xlsx"
+    change_list_template = "admin/cases/casearchive/change_list.html"
+
+    list_display = (
+        "id",
+        "serial_number",
+        "applicant",
+        "respondent",
+        "case_reason_short",
+        "acceptance_time",
+        "handler",
+        "closure_time",
+        "closure_method_short",
+        "case_number",
+    )
+    search_fields = ("applicant", "respondent", "case_number", "handler", "case_reason")
+    list_filter = ("acceptance_time", "closure_time")
+    ordering = ("-created_at", "-id")
+    list_per_page = 20
+
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("基本信息", {"fields": ("serial_number", "case_number", "applicant", "respondent")}),
+        ("案件详情", {"fields": ("case_reason", "applicable_procedure")}),
+        ("办理信息", {"fields": ("handler", "acceptance_time", "closure_time", "closure_method")}),
+        ("时间信息", {"fields": ("created_at", "updated_at")}),
+    )
+
+    @admin.display(description="案由")
+    def case_reason_short(self, obj):
+        """案由截断显示。"""
+        if obj.case_reason and len(obj.case_reason) > 20:
+            return f"{obj.case_reason[:20]}..."
+        return obj.case_reason
+
+    @admin.display(description="结案方式")
+    def closure_method_short(self, obj):
+        """结案方式截断显示。"""
+        if obj.closure_method and len(obj.closure_method) > 15:
+            return f"{obj.closure_method[:15]}..."
+        return obj.closure_method
+
+
 # 注册到管理员后台
 admin_site.register(TaskType, TaskTypeAdmin)
 admin_site.register(Town, TownAdmin)
 admin_site.register(Task, TaskAdmin)
 admin_site.register(ArchivedTask, ArchivedTaskAdmin)
+admin_site.register(CaseArchive, CaseArchiveAdmin)
 
 # ==================== 网格管理员专用 Admin ====================
 

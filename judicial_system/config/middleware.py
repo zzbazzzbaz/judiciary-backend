@@ -95,6 +95,7 @@ class DynamicSimpleUIMiddleware:
                         "icon": "fas fa-archive",
                         "models": [
                             {"name": "任务归档", "icon": "fas fa-box-archive", "url": "/admin/cases/archivedtask/"},
+                            {"name": "案件归档", "icon": "fas fa-folder-open", "url": "/admin/cases/casearchive/"},
                         ],
                     },
                     {
