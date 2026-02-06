@@ -85,18 +85,19 @@ jobs:
             echo "📂 部署目录: $(pwd)"
             echo ""
 
-            # 设置代理环境变量
-            export http_proxy=http://127.0.0.1:7890
-            export https_proxy=http://127.0.0.1:7890
-
             # 清除可能过期的 ghcr.io 凭据（package 已公开，匿名拉取即可）
             sudo docker logout ghcr.io 2>/dev/null || true
 
-            # 拉取最新镜像
+            # 拉取最新镜像（先尝试直连，失败则走代理）
             echo "----------------------------------------"
             echo "📦 步骤 1/3: 拉取最新镜像..."
             echo "----------------------------------------"
-            sudo -E docker compose pull
+            sudo docker compose pull || {
+              echo "⚠️ 直连失败，尝试通过代理拉取..."
+              export http_proxy=http://127.0.0.1:7890
+              export https_proxy=http://127.0.0.1:7890
+              sudo -E docker compose pull
+            }
             echo "✅ 镜像拉取完成"
             echo ""
 
