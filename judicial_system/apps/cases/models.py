@@ -254,6 +254,15 @@ class ArchivedTask(Task):
         verbose_name_plural = verbose_name
 
 
+class TaskStatReport(Task):
+    """统计报表代理模型（用于管理员端按月统计报表）。"""
+
+    class Meta:
+        proxy = True
+        verbose_name = "统计报表"
+        verbose_name_plural = verbose_name
+
+
 class CaseArchive(models.Model):
     """案件归档表（cases_case_archive）。"""
 

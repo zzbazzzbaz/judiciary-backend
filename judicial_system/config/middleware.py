@@ -99,6 +99,13 @@ class DynamicSimpleUIMiddleware:
                         ],
                     },
                     {
+                        "name": "统计报表",
+                        "icon": "fas fa-chart-bar",
+                        "models": [
+                            {"name": "矛盾纠纷统计", "icon": "fas fa-table", "url": "/admin/cases/taskstatreport/"},
+                        ],
+                    },
+                    {
                         "name": "系统配置",
                         "icon": "fas fa-cog",
                         "models": [

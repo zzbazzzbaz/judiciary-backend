@@ -1,0 +1,165 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    .stat-container { max-width: 1600px; margin: 0 auto; }
+    .stat-table th, .stat-table td {
+        border: 1px solid #d1d5db;
+        padding: 8px 10px;
+        text-align: center;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .stat-table thead th {
+        background-color: #dbeafe;
+        font-weight: 600;
+        color: #1e3a5f;
+    }
+    .stat-table .summary-row td {
+        background-color: #f0f9ff;
+        font-weight: 600;
+    }
+    .stat-table tbody tr:hover td {
+        background-color: #f8fafc;
+    }
+    .type-header {
+        white-space: pre-line !important;
+        min-width: 100px;
+        line-height: 1.4;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stat-container p-6">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">统计报表</h1>
+        <p class="text-gray-500 mt-1">按月统计矛盾纠纷任务，按镇办×纠纷类型交叉统计化解情况</p>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-700">年份：</label>
+                <select name="year" style="height: 40px;" class="min-w-[100px] px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    {% for y in year_choices %}
+                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}年</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-700">月份：</label>
+                <select name="month" style="height: 40px;" class="min-w-[80px] px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    {% for m in month_choices %}
+                    <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}月</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit"
+                    class="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                查询
+            </button>
+            <a href="export/?year={{ selected_year }}&month={{ selected_month }}"
+               class="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                导出 Excel
+            </a>
+        </form>
+    </div>
+
+    <!-- 概览卡片 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm text-gray-500">本月纠纷总数</p>
+            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stat.grand_total }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm text-gray-500">已化解</p>
+            <p class="text-3xl font-bold text-green-600 mt-1">{{ stat.grand_resolved }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm text-gray-500">未化解</p>
+            <p class="text-3xl font-bold text-red-500 mt-1">{{ stat.grand_unresolved }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm text-gray-500">纠纷类型数</p>
+            <p class="text-3xl font-bold text-blue-600 mt-1">{{ stat.task_types|length }}</p>
+        </div>
+    </div>
+
+    <!-- 统计表格 -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="stat-table w-full">
+                <thead>
+                    <!-- Row 1: 镇办 | 矛盾纠纷类型 -->
+                    <tr>
+                        <th rowspan="3" style="min-width:100px;">镇办</th>
+                        <th colspan="999">矛盾纠纷类型</th>
+                    </tr>
+                    <!-- Row 2: 当前矛盾纠纷情况 + 各类型名称 -->
+                    <tr>
+                        <th colspan="2" class="type-header">当前矛盾<br>纠纷情况</th>
+                        {% for ts in stat.type_stats %}
+                        <th colspan="2" class="type-header">{{ ts.type.name }}<br>（共计：{{ ts.total }} 件）</th>
+                        {% endfor %}
+                    </tr>
+                    <!-- Row 3: sub-headers -->
+                    <tr>
+                        <th>本月矛盾<br>纠纷总数</th>
+                        <th>本月未化解<br>纠纷数</th>
+                        {% for tt in stat.task_types %}
+                        <th>化解数</th>
+                        <th>未化解数</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 合计行 -->
+                    <tr class="summary-row">
+                        <td><strong>合计</strong></td>
+                        <td>{{ stat.grand_total }}</td>
+                        <td>{{ stat.grand_unresolved }}</td>
+                        {% for sc in stat.summary_cells %}
+                        <td>{{ sc.resolved }}</td>
+                        <td>{{ sc.unresolved }}</td>
+                        {% endfor %}
+                    </tr>
+                    <!-- 各镇数据行 -->
+                    {% for row in stat.rows %}
+                    <tr>
+                        <td>{{ row.town.name }}</td>
+                        <td>{{ row.total }}</td>
+                        <td>{{ row.unresolved }}</td>
+                        {% for cell in row.cells %}
+                        <td>{{ cell.resolved }}</td>
+                        <td>{{ cell.unresolved }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="99" class="py-8 text-gray-400">暂无数据</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4 text-sm text-gray-400 space-y-1">
+        <p>说明：</p>
+        <p>• 统计范围：按任务「上报时间」筛选当月数据</p>
+        <p>• 化解 = 调解结果为「成功」或「部分成功」；未化解 = 其他情况（含失败及未完成）</p>
+    </div>
+</div>
+{% endblock %}

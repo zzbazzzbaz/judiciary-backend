@@ -36,7 +36,7 @@ def get_attachments_from_ids(ids_str: str) -> list:
 
 from utils.code_generator import generate_task_code
 
-from .models import ArchivedTask, CaseArchive, Task, TaskType, Town, UnassignedTask
+from .models import ArchivedTask, CaseArchive, Task, TaskStatReport, TaskType, Town, UnassignedTask
 from .resources import CaseArchiveResource
 
 
@@ -515,12 +515,357 @@ class CaseArchiveAdmin(ImportMixin, ExcelImportExportMixin, admin.ModelAdmin):
         return obj.closure_method
 
 
+class TaskStatReportAdmin(admin.ModelAdmin):
+    """统计报表：按月统计任务，按镇办×矛盾纠纷类型交叉统计，支持导出 Excel。"""
+
+    change_list_template = "admin/cases/taskstatreport/change_list.html"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def _get_month_range(self, year, month):
+        """Return (start_date, end_date) for a given month."""
+        import calendar
+        from datetime import date
+        last_day = calendar.monthrange(year, month)[1]
+        return date(year, month, 1), date(year, month, last_day)
+
+    def _build_stat_data(self, year, month):
+        """构建统计数据: 按镇办×类型交叉统计化解/未化解数。"""
+        from django.db.models import Count, Q
+
+        start_date, end_date = self._get_month_range(year, month)
+
+        # 基础查询：该月上报的任务
+        base_qs = Task.objects.filter(
+            reported_at__date__gte=start_date,
+            reported_at__date__lte=end_date,
+        )
+
+        towns = list(Town.objects.filter(is_active=True).order_by("sort_order", "id"))
+        task_types = list(TaskType.objects.filter(is_active=True).order_by("sort_order", "id"))
+
+        # 化解 = success + partial，未化解 = 其他（包含 failure 及未完成的）
+        resolved_q = Q(result__in=[Task.Result.SUCCESS, Task.Result.PARTIAL])
+
+        # 按 town×task_type 统计
+        raw = (
+            base_qs
+            .values("town_id", "task_type_id")
+            .annotate(
+                total=Count("id"),
+                resolved=Count("id", filter=resolved_q),
+            )
+        )
+        # 构建查找表 {(town_id, task_type_id): {total, resolved}}
+        lookup = {}
+        for row in raw:
+            lookup[(row["town_id"], row["task_type_id"])] = {
+                "total": row["total"],
+                "resolved": row["resolved"],
+            }
+
+        # 每个类型的全局统计
+        type_totals = {}
+        for tt in task_types:
+            type_totals[tt.id] = {"resolved": 0, "unresolved": 0}
+
+        # 构建每行数据
+        rows = []
+        grand_total = 0
+        grand_unresolved = 0
+        for town in towns:
+            row_total = 0
+            row_unresolved = 0
+            cells = []
+            for tt in task_types:
+                info = lookup.get((town.id, tt.id), {"total": 0, "resolved": 0})
+                resolved = info["resolved"]
+                unresolved = info["total"] - resolved
+                cells.append({"resolved": resolved, "unresolved": unresolved})
+                row_total += info["total"]
+                row_unresolved += unresolved
+                type_totals[tt.id]["resolved"] += resolved
+                type_totals[tt.id]["unresolved"] += unresolved
+            rows.append({
+                "town": town,
+                "total": row_total,
+                "unresolved": row_unresolved,
+                "cells": cells,
+            })
+            grand_total += row_total
+            grand_unresolved += row_unresolved
+
+        # 合计行 + 类型统计（zip task_type with summary for template rendering）
+        type_stats = []
+        summary_cells = []
+        for tt in task_types:
+            info = type_totals[tt.id]
+            info["total"] = info["resolved"] + info["unresolved"]
+            summary_cells.append(info)
+            type_stats.append({"type": tt, **info})
+
+        grand_resolved = grand_total - grand_unresolved
+
+        return {
+            "towns": towns,
+            "task_types": task_types,
+            "type_stats": type_stats,
+            "rows": rows,
+            "summary_cells": summary_cells,
+            "grand_total": grand_total,
+            "grand_resolved": grand_resolved,
+            "grand_unresolved": grand_unresolved,
+            "year": year,
+            "month": month,
+        }
+
+    def changelist_view(self, request, extra_context=None):
+        """Render the monthly statistics report page."""
+        from django.shortcuts import render
+
+        now = timezone.now()
+        try:
+            year = int(request.GET.get("year", now.year))
+            month = int(request.GET.get("month", now.month))
+            if not (1 <= month <= 12) or year < 2000:
+                raise ValueError
+        except (ValueError, TypeError):
+            year, month = now.year, now.month
+
+        stat = self._build_stat_data(year, month)
+
+        # 构建年/月选项
+        year_choices = list(range(2024, now.year + 2))
+        month_choices = list(range(1, 13))
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "统计报表",
+            "opts": self.model._meta,
+            "stat": stat,
+            "year_choices": year_choices,
+            "month_choices": month_choices,
+            "selected_year": year,
+            "selected_month": month,
+        }
+        return render(request, self.change_list_template, context)
+
+    # 模板文件名（位于 IMPORT_TEMPLATES_DIR 目录下）
+    excel_template_file = "矛盾纠纷统计报表模板.xlsx"
+
+    @staticmethod
+    def _copy_style(src, dst):
+        """Copy font/fill/border/alignment/number_format from src cell to dst cell."""
+        from copy import copy
+        dst.font = copy(src.font)
+        dst.fill = copy(src.fill)
+        dst.border = copy(src.border)
+        dst.alignment = copy(src.alignment)
+        dst.number_format = src.number_format
+
+    @staticmethod
+    def _ensure_borders(ws, max_row, max_col, start_row=1):
+        """确保数据区域所有单元格都有完整边框（保留已有边框样式，缺失的补 thin）。"""
+        from copy import copy
+        from openpyxl.styles import Border, Side
+        thin = Side(style="thin")
+        for r in range(start_row, max_row + 1):
+            for c in range(1, max_col + 1):
+                cell = ws.cell(row=r, column=c)
+                b = cell.border
+                left = b.left if b.left and b.left.style else thin
+                right = b.right if b.right and b.right.style else thin
+                top = b.top if b.top and b.top.style else thin
+                bottom = b.bottom if b.bottom and b.bottom.style else thin
+                cell.border = Border(left=left, right=right, top=top, bottom=bottom)
+
+    def _export_excel(self, request, year, month):
+        """
+        加载模板文件，读取样式参考单元格（D-E 列），填充实际数据后导出。
+
+        模板行号约定（含标题行）：
+          Row 1 — 标题行       Row 2 — 镇办/矛盾纠纷类型
+          Row 3 — D3: 类型表头  Row 4 — D4/E4: 子表头
+          Row 5 — D5/E5: 合计行  Row 6 — D6/E6: 数据行
+        可用 Excel 编辑模板文件自由调整样式。
+        """
+        from io import BytesIO
+        from urllib.parse import quote
+
+        from django.http import HttpResponse
+        from openpyxl import load_workbook
+        from openpyxl.utils import get_column_letter
+
+        stat = self._build_stat_data(year, month)
+        task_types = stat["task_types"]
+        rows_data = stat["rows"]
+        n_types = len(task_types)
+
+        # --- 加载模板 ---
+        tpl_path = os.path.join(settings.IMPORT_TEMPLATES_DIR, self.excel_template_file)
+        wb = load_workbook(tpl_path)
+        ws = wb.active
+        ws.title = f"{year}年{month}月统计"
+
+        # --- 从模板读取参考样式（模板含标题行，行号 1-6） ---
+        ref_title       = ws.cell(row=1, column=1)   # A1: 标题行
+        ref_type_header = ws.cell(row=3, column=4)   # D3: 类型表头
+        ref_sub_left    = ws.cell(row=4, column=4)   # D4: 化解数表头
+        ref_sub_right   = ws.cell(row=4, column=5)   # E4: 未化解数表头
+        ref_sum_left    = ws.cell(row=5, column=4)   # D5: 合计行左
+        ref_sum_right   = ws.cell(row=5, column=5)   # E5: 合计行右
+        ref_data_left   = ws.cell(row=6, column=4)   # D6: 数据行左
+        ref_data_right  = ws.cell(row=6, column=5)   # E6: 数据行右
+        # 固定列参考
+        ref_a5  = ws.cell(row=5, column=1)  # 合计行镇办列
+        ref_b5  = ws.cell(row=5, column=2)  # 合计行总数列
+        ref_c5  = ws.cell(row=5, column=3)
+        ref_a6  = ws.cell(row=6, column=1)  # 数据行镇办列
+        ref_b6  = ws.cell(row=6, column=2)
+        ref_c6  = ws.cell(row=6, column=3)
+
+        # 行高参考
+        row_heights = {}
+        for r in range(1, 5):
+            h = ws.row_dimensions[r].height
+            if h:
+                row_heights[r] = h
+
+        # --- 清空模板数据区域 ---
+        for mg in list(ws.merged_cells.ranges):
+            ws.unmerge_cells(str(mg))
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=ws.max_column):
+            for cell in row:
+                cell.value = None
+
+        total_cols = 3 + n_types * 2
+
+        # --- Row 1: 标题行 ---
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+        c = ws.cell(row=1, column=1, value=f"镇巴县司法行政系统矛盾纠纷排查化解基本情况统计表（{month} 月）")
+        self._copy_style(ref_title, c)
+
+        # --- Row 2-4: 表头 ---
+        ws.merge_cells(start_row=2, start_column=1, end_row=4, end_column=1)
+        ws.cell(row=2, column=1, value="镇办")
+
+        if total_cols > 1:
+            ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=total_cols)
+            ws.cell(row=2, column=2, value="矛盾纠纷类型")
+
+        # Row 3
+        ws.merge_cells(start_row=3, start_column=2, end_row=3, end_column=3)
+        ws.cell(row=3, column=2, value="当前矛盾\n纠纷情况")
+
+        for i, tt in enumerate(task_types):
+            col = 4 + i * 2
+            tt_total = stat["summary_cells"][i]["total"]
+            ws.merge_cells(start_row=3, start_column=col, end_row=3, end_column=col + 1)
+            c = ws.cell(row=3, column=col, value=f"{tt.name}\n（共计：{tt_total} 件）")
+            self._copy_style(ref_type_header, c)
+
+        # Row 4: 子表头
+        ws.cell(row=4, column=2, value="本月矛盾\n纠纷总数")
+        ws.cell(row=4, column=3, value="本月未化解\n纠纷数")
+        for i in range(n_types):
+            col = 4 + i * 2
+            c = ws.cell(row=4, column=col, value="化解数")
+            self._copy_style(ref_sub_left, c)
+            c = ws.cell(row=4, column=col + 1, value="未化解数")
+            self._copy_style(ref_sub_right, c)
+
+        # --- Row 5: 合计 ---
+        c = ws.cell(row=5, column=1, value="合计")
+        self._copy_style(ref_a5, c)
+        c = ws.cell(row=5, column=2, value=stat["grand_total"])
+        self._copy_style(ref_b5, c)
+        c = ws.cell(row=5, column=3, value=stat["grand_unresolved"])
+        self._copy_style(ref_c5, c)
+        for i, sc in enumerate(stat["summary_cells"]):
+            col = 4 + i * 2
+            c = ws.cell(row=5, column=col, value=sc["resolved"])
+            self._copy_style(ref_sum_left, c)
+            c = ws.cell(row=5, column=col + 1, value=sc["unresolved"])
+            self._copy_style(ref_sum_right, c)
+
+        # --- Data rows (from row 6) ---
+        for idx, row_data in enumerate(rows_data):
+            r = 6 + idx
+            c = ws.cell(row=r, column=1, value=row_data["town"].name)
+            self._copy_style(ref_a6, c)
+            c = ws.cell(row=r, column=2, value=row_data["total"])
+            self._copy_style(ref_b6, c)
+            c = ws.cell(row=r, column=3, value=row_data["unresolved"])
+            self._copy_style(ref_c6, c)
+            for i, cell_data in enumerate(row_data["cells"]):
+                col = 4 + i * 2
+                c = ws.cell(row=r, column=col, value=cell_data["resolved"])
+                self._copy_style(ref_data_left, c)
+                c = ws.cell(row=r, column=col + 1, value=cell_data["unresolved"])
+                self._copy_style(ref_data_right, c)
+
+        # --- 列宽、行高 ---
+        ws.column_dimensions["A"].width = 14
+        for col_idx in range(2, total_cols + 1):
+            ws.column_dimensions[get_column_letter(col_idx)].width = 13
+        for row_num, h in row_heights.items():
+            ws.row_dimensions[row_num].height = h
+
+        # --- 补全边框（标题行不加边框，从第 2 行开始） ---
+        max_data_row = 5 + len(rows_data)
+        self._ensure_borders(ws, max_data_row, total_cols, start_row=2)
+
+        # --- 输出 ---
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        filename = f"{year}年{month}月矛盾纠纷统计报表.xlsx"
+        response = HttpResponse(
+            buf.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(filename)}"
+        return response
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "export/",
+                self.admin_site.admin_view(self.export_view),
+                name="cases_taskstatreport_export",
+            ),
+        ]
+        return custom_urls + urls
+
+    def export_view(self, request):
+        """Handle Excel export request."""
+        now = timezone.now()
+        try:
+            year = int(request.GET.get("year", now.year))
+            month = int(request.GET.get("month", now.month))
+            if not (1 <= month <= 12) or year < 2000:
+                raise ValueError
+        except (ValueError, TypeError):
+            year, month = now.year, now.month
+        return self._export_excel(request, year, month)
+
+
 # 注册到管理员后台
 admin_site.register(TaskType, TaskTypeAdmin)
 admin_site.register(Town, TownAdmin)
 admin_site.register(Task, TaskAdmin)
 admin_site.register(ArchivedTask, ArchivedTaskAdmin)
 admin_site.register(CaseArchive, CaseArchiveAdmin)
+admin_site.register(TaskStatReport, TaskStatReportAdmin)
 
 # ==================== 网格管理员专用 Admin ====================
 
