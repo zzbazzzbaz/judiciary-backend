@@ -188,8 +188,7 @@ class TaskAdmin(admin.ModelAdmin):
 
         last_error: IntegrityError | None = None
         for _ in range(3):
-            task_type_code = obj.task_type.code if obj.task_type else "task"
-            obj.code = generate_task_code(task_type=task_type_code)
+            obj.code = generate_task_code(task_type_id=obj.task_type_id)
             try:
                 with transaction.atomic():
                     return super().save_model(request, obj, form, change)
@@ -268,9 +267,9 @@ class TaskAdmin(admin.ModelAdmin):
 class TaskTypeAdmin(admin.ModelAdmin):
     """任务类型管理。"""
 
-    list_display = ("id", "name", "code", "is_active", "sort_order", "created_at")
+    list_display = ("id", "name", "is_active", "sort_order", "created_at")
     list_editable = ("is_active", "sort_order")
-    search_fields = ("name", "code")
+    search_fields = ("name",)
     list_filter = ("is_active",)
     ordering = ("sort_order", "id")
 
@@ -278,9 +277,9 @@ class TaskTypeAdmin(admin.ModelAdmin):
 class TownAdmin(admin.ModelAdmin):
     """所属镇管理。"""
 
-    list_display = ("id", "name", "code", "is_active", "sort_order", "created_at")
+    list_display = ("id", "name", "is_active", "sort_order", "created_at")
     list_editable = ("is_active", "sort_order")
-    search_fields = ("name", "code")
+    search_fields = ("name",)
     list_filter = ("is_active",)
     ordering = ("sort_order", "id")
 

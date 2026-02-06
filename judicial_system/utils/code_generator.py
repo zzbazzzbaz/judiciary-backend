@@ -12,23 +12,36 @@ from django.db.models import Max
 from django.utils import timezone
 
 
-def generate_task_code(task_type: str) -> str:
+# 任务类型名称关键字 -> 编号前缀
+_NAME_PREFIX_MAP = {
+    "纠纷": "JF",
+    "法律援助": "YZ",
+}
+
+_DEFAULT_PREFIX = "RW"  # 默认前缀（任务）
+
+
+def generate_task_code(task_type_id: int) -> str:
     """
     生成任务编号：类型前缀 + 年月日 + 4位序号。
 
+    参数：
+        task_type_id: TaskType 的主键 ID。
+
     注意：
-    - prefix: dispute -> JF，legal_aid -> YZ
     - 并发场景下仍建议由调用方配合事务/重试，最终以唯一约束为准。
     """
 
-    from apps.cases.models import Task
+    from apps.cases.models import Task, TaskType
 
-    if task_type == Task.Type.DISPUTE:
-        prefix = "JF"
-    elif task_type == Task.Type.LEGAL_AID:
-        prefix = "YZ"
-    else:
-        raise ValueError("task_type 不正确")
+    # 根据任务类型名称确定编号前缀
+    prefix = _DEFAULT_PREFIX
+    task_type = TaskType.objects.filter(id=task_type_id).first()
+    if task_type:
+        for keyword, p in _NAME_PREFIX_MAP.items():
+            if keyword in task_type.name:
+                prefix = p
+                break
 
     today = timezone.now().strftime("%Y%m%d")
     today_prefix = f"{prefix}{today}"

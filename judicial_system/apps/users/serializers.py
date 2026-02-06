@@ -191,6 +191,7 @@ class OrganizationListSerializer(serializers.ModelSerializer):
             "name",
             "parent_id",
             "parent_name",
+            "tag",
             "is_active",
             "sort_order",
         ]

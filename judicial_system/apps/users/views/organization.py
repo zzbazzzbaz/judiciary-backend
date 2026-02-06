@@ -51,6 +51,7 @@ class OrganizationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             return {
                 "id": node.id,
                 "name": node.name,
+                "tag": node.tag,
                 "children": [build_node(child) for child in children_map.get(node.id, [])],
             }
 

@@ -12,7 +12,6 @@ class TaskType(models.Model):
     """任务类型表（cases_task_type）。"""
 
     name = models.CharField("类型名称", max_length=50, unique=True)
-    code = models.CharField("类型编码", max_length=30, unique=True)
     description = models.TextField("描述", blank=True, default="")
     is_active = models.BooleanField("是否启用", default=True)
     sort_order = models.IntegerField("排序", default=0)
@@ -33,7 +32,6 @@ class Town(models.Model):
     """所属镇表（cases_town）。"""
 
     name = models.CharField("镇名称", max_length=100, unique=True)
-    code = models.CharField("镇编码", max_length=30, unique=True)
     description = models.TextField("描述", blank=True, default="")
     is_active = models.BooleanField("是否启用", default=True)
     sort_order = models.IntegerField("排序", default=0)

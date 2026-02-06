@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from django.db import models
-from django.db.models import Count, Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Q
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -54,7 +54,9 @@ class ArticleViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         category_id = params.get("category_id")
 
         if search:
-            qs = qs.filter(title__icontains=search)
+            qs = qs.filter(
+                Q(title__icontains=search) | Q(content__icontains=search)
+            )
         if category_id and str(category_id).isdigit():
             qs = qs.filter(category_id=int(category_id))
 

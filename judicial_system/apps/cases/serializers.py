@@ -42,7 +42,7 @@ class TaskTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TaskType
-        fields = ["id", "name", "code", "description"]
+        fields = ["id", "name", "description"]
 
 
 class TownSerializer(serializers.ModelSerializer):
@@ -50,7 +50,7 @@ class TownSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Town
-        fields = ["id", "name", "code", "description"]
+        fields = ["id", "name", "description"]
 
 
 class TaskListSerializer(serializers.ModelSerializer):
@@ -248,8 +248,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             validated_data["town_id"] = town_id
 
         # 生成任务编号
-        task_type = TaskType.objects.get(id=task_type_id)
-        validated_data["code"] = generate_task_code(task_type=task_type.code)
+        validated_data["code"] = generate_task_code(task_type_id=task_type_id)
 
         return Task.objects.create(**validated_data)
 
