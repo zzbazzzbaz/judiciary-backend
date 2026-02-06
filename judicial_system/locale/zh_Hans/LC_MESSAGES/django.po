@@ -1,0 +1,12 @@
+# Project-level Chinese translations
+# Fixes SimpleUI using {% trans %} for strings defined as ngettext in Django's catalog
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+
+msgid "Please correct the error below."
+msgstr "请更正以下错误。"
+
+msgid "Please correct the errors below."
+msgstr "请更正以下错误。"
