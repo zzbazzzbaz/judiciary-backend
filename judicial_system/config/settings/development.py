@@ -50,6 +50,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://8001.frp.chatgqt.top",
+    "https://8002.frp.chatgqt.top",
     "http://127.0.0.1",
     "http://127.0.0.1:8000",
     "http://localhost",

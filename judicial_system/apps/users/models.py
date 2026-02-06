@@ -24,9 +24,6 @@ class Organization(models.Model):
         related_name="children",
         verbose_name="上级机构",
     )  # 上级机构（自关联）
-    description = models.TextField("职能介绍", null=True, blank=True)
-    contact = models.CharField("联系方式", max_length=50, null=True, blank=True)
-    address = models.CharField("地址", max_length=255, null=True, blank=True)
     tag = models.TextField("标签", null=True, blank=True)
     sort_order = models.IntegerField("排序", default=0)
     is_active = models.BooleanField("是否启用", default=True)
