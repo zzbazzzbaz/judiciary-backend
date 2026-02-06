@@ -72,6 +72,10 @@ class TaskAdmin(admin.ModelAdmin):
 
     form = TaskAdminForm
     actions = ["archive_tasks"]
+    autocomplete_fields = ("reporter", "assigner", "assigned_mediator")
+
+    class Media:
+        js = ("admin/js/task_grid_filter.js",)
 
     list_display = (
         "id",

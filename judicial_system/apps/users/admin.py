@@ -362,6 +362,18 @@ class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
         elif field_name == "assigner":
             queryset = queryset.filter(role__in=[User.Role.ADMIN, User.Role.GRID_MANAGER])
 
+        # 按网格过滤（Task 表单中选择网格后联动筛选人员）
+        grid_id = request.GET.get("grid_id")
+        if grid_id:
+            from django.db.models import Q
+
+            if field_name == "assigner":
+                # 分配人：按网格过滤网格负责人，但始终包含管理员（管理员不属于特定网格）
+                queryset = queryset.filter(Q(grid_id=grid_id) | Q(role=User.Role.ADMIN))
+            else:
+                # 上报人 / 被分配调解员：严格按网格过滤
+                queryset = queryset.filter(grid_id=grid_id)
+
         return queryset, use_distinct
 
     @admin.action(description="重置密码")
