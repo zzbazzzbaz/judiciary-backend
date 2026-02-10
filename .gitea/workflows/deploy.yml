@@ -1,0 +1,31 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        run: |
+          git clone --depth=1 --branch=${{ github.ref_name }} \
+            https://x-access-token:${{ github.token }}@gitea.chatgqt.top/${{ gitea.repository }}.git .
+          git checkout ${{ github.sha }}
+
+      - name: Login to Gitea Registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login gitea.chatgqt.top -u ${{ gitea.actor }} --password-stdin
+
+      - name: Build Docker Image
+        run: |
+          TAG=$(date +%Y%m%d%H%M%S)
+          docker build \
+            -t gitea.chatgqt.top/gqt/judiciary-backend:latest \
+            -t gitea.chatgqt.top/gqt/judiciary-backend:$TAG .
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Push Docker Image
+        run: |
+          docker push gitea.chatgqt.top/gqt/judiciary-backend:latest
+          docker push gitea.chatgqt.top/gqt/judiciary-backend:$TAG
