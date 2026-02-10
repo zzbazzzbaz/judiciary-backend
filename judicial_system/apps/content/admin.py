@@ -3,16 +3,17 @@
 from django.contrib import admin
 
 from config.admin_sites import admin_site
+from utils.admin_mixins import DetailButtonMixin
 from .models import Activity, Article, ArticleViewLog, Category, ContentAttachment, Document, DocumentCategory
 
 
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "sort_order", "created_at")
     ordering = ("sort_order", "id")
     list_editable = ("sort_order",)
 
 
-class ArticleAdmin(admin.ModelAdmin):
+class ArticleAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = (
         "id",
         "title",
@@ -37,31 +38,31 @@ class ArticleAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-class ContentAttachmentAdmin(admin.ModelAdmin):
+class ContentAttachmentAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "file", "created_at")
     search_fields = ("file",)
 
 
-class ActivityAdmin(admin.ModelAdmin):
+class ActivityAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "start_time", "registration_start", "registration_end", "created_at")
     search_fields = ("name",)
     filter_horizontal = ("participants",)
     autocomplete_fields = ('files',)
 
 
-class DocumentCategoryAdmin(admin.ModelAdmin):
+class DocumentCategoryAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "sort_order", "created_at")
     ordering = ("sort_order", "id")
     list_editable = ("sort_order",)
 
 
-class DocumentAdmin(admin.ModelAdmin):
+class DocumentAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "category", "file", "created_at")
     search_fields = ("name",)
     list_filter = ("category",)
 
 
-class ArticleViewLogAdmin(admin.ModelAdmin):
+class ArticleViewLogAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "article", "user", "viewed_at")
     search_fields = ("article__title", "user__username", "user__name")
     list_filter = ("viewed_at",)

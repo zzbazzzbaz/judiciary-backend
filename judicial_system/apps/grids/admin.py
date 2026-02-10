@@ -8,11 +8,12 @@ from django.db.models import Count
 from django.forms import Textarea
 
 from config.admin_sites import admin_site, grid_manager_site
+from utils.admin_mixins import DetailButtonMixin
 
 from .models import Grid
 
 
-class GridAdmin(admin.ModelAdmin):
+class GridAdmin(DetailButtonMixin, admin.ModelAdmin):
     """网格管理（网格信息、边界、负责人、调解员分配）。"""
 
     list_display = ("id", "name", "region", "current_manager", "mediator_count", "is_active", "created_at")
@@ -23,10 +24,10 @@ class GridAdmin(admin.ModelAdmin):
     readonly_fields = ("current_manager", "created_at", "updated_at")
     fieldsets = (
         ("基本信息", {"fields": ("name", "region", "description", "is_active")}),
-        ("边界与中心点", {"fields": ("boundary", ("center_lng", "center_lat"))}),
         ("负责人", {"fields": ("current_manager",)}),
         ("时间", {"fields": ("created_at", "updated_at")}),
     )
+    exclude = ("boundary", "center_lng", "center_lat")
 
     formfield_overrides = {
         models.JSONField: {

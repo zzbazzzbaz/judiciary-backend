@@ -21,6 +21,7 @@ from apps.common.models import Attachment
 from apps.grids.models import Grid
 from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
+from utils.admin_mixins import DetailButtonMixin
 
 
 def get_attachments_from_ids(ids_str: str) -> list:
@@ -67,7 +68,7 @@ class TaskAdminForm(forms.ModelForm):
         return cleaned_data
 
 
-class TaskAdmin(admin.ModelAdmin):
+class TaskAdmin(DetailButtonMixin, admin.ModelAdmin):
     """任务管理（纠纷/法律援助、分派与调解结果）。"""
 
     form = TaskAdminForm
@@ -87,7 +88,6 @@ class TaskAdmin(admin.ModelAdmin):
         "reporter",
         "assigned_mediator",
         "reported_at",
-        "view_detail_action",
     )
     list_select_related = ("grid", "reporter", "assigned_mediator", "task_type")
     search_fields = ("code", "party_name", "party_phone", "reporter__name", "assigned_mediator__name")
@@ -200,17 +200,15 @@ class TaskAdmin(admin.ModelAdmin):
         if last_error:
             raise last_error
 
+    @admin.display(description="操作")
     def view_detail_action(self, obj):
-        """查看详情按钮。"""
-        from django.utils.html import format_html
+        """查看详情按钮（指向自定义详情页）。"""
         return format_html(
             '<a style="display:inline-block;padding:4px 12px;background:#e3f2fd;color:#333;'
             'border-radius:4px;text-decoration:none;font-size:12px;" '
             'href="{}">详情</a>',
             f"/admin/cases/task/{obj.pk}/detail/"
         )
-    view_detail_action.short_description = "操作"
-    view_detail_action.allow_tags = True
 
     def get_urls(self):
         """添加自定义详情页 URL。"""
@@ -264,7 +262,7 @@ class TaskAdmin(admin.ModelAdmin):
         return render(request, "admin/cases/task/detail.html", context)
 
 
-class TaskTypeAdmin(admin.ModelAdmin):
+class TaskTypeAdmin(DetailButtonMixin, admin.ModelAdmin):
     """任务类型管理。"""
 
     list_display = ("id", "name", "is_active", "sort_order", "created_at")
@@ -274,7 +272,7 @@ class TaskTypeAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "id")
 
 
-class TownAdmin(admin.ModelAdmin):
+class TownAdmin(DetailButtonMixin, admin.ModelAdmin):
     """所属镇管理。"""
 
     list_display = ("id", "name", "is_active", "sort_order", "created_at")
@@ -508,7 +506,7 @@ class CaseArchiveFileInline(admin.TabularInline):
         return f"{obj.file_size / 1024 / 1024:.1f} MB"
 
 
-class CaseArchiveAdmin(ImportMixin, ExcelImportExportMixin, admin.ModelAdmin):
+class CaseArchiveAdmin(DetailButtonMixin, ImportMixin, ExcelImportExportMixin, admin.ModelAdmin):
     """案件归档管理，支持Excel导入导出。"""
 
     resource_class = CaseArchiveResource

@@ -28,6 +28,7 @@ from import_export.results import RowResult
 
 from apps.grids.models import Grid
 from config.admin_sites import admin_site, grid_manager_site
+from utils.admin_mixins import DetailButtonMixin
 from .models import Organization, PerformanceHistory, PerformanceScore, TrainingRecord, User, UserAttachment
 from .resources import MediatorResource, TrainingRecordResource
 
@@ -220,7 +221,7 @@ class ExcelImportMixin:
         return super().generate_log_entries(result, request)
 
 
-class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
+class UserAdmin(DetailButtonMixin, ImportMixin, ExcelImportMixin, BaseUserAdmin):
     """人员管理（用户/人员），支持Excel导入。"""
 
     actions = ["reset_password"]
@@ -386,7 +387,7 @@ class UserAdmin(ImportMixin, ExcelImportMixin, BaseUserAdmin):
         self.message_user(request, f"已成功重置 {count} 个用户的密码为 123456", messages.SUCCESS)
 
 
-class UserAttachmentAdmin(admin.ModelAdmin):
+class UserAttachmentAdmin(DetailButtonMixin, admin.ModelAdmin):
     """用户附件管理。"""
 
     list_display = ("id", "user", "created_at")
@@ -404,7 +405,7 @@ class UserAttachmentAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-class OrganizationAdmin(admin.ModelAdmin):
+class OrganizationAdmin(DetailButtonMixin, admin.ModelAdmin):
     """机构管理。"""
 
     list_display = ("id", "name", "parent", "sort_order", "is_active", "created_at")
@@ -414,7 +415,7 @@ class OrganizationAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "id")
 
 
-class TrainingRecordAdmin(ImportMixin, ExcelImportMixin, admin.ModelAdmin):
+class TrainingRecordAdmin(DetailButtonMixin, ImportMixin, ExcelImportMixin, admin.ModelAdmin):
     """培训记录管理，支持Excel导入。"""
 
     resource_class = TrainingRecordResource
@@ -429,7 +430,7 @@ class TrainingRecordAdmin(ImportMixin, ExcelImportMixin, admin.ModelAdmin):
     ordering = ("-training_time", "-created_at")
 
 
-class PerformanceScoreAdmin(admin.ModelAdmin):
+class PerformanceScoreAdmin(DetailButtonMixin, admin.ModelAdmin):
     """绩效管理（网格负责人对调解员打分）。"""
 
     list_display = ("id", "mediator", "score", "period", "scorer", "created_at")
@@ -547,7 +548,7 @@ class GridManagerMediatorChangeForm(forms.ModelForm):
         return self.initial.get("password")
 
 
-class GridManagerUserAdmin(BaseUserAdmin):
+class GridManagerUserAdmin(DetailButtonMixin, BaseUserAdmin):
     """
     网格管理员端 - 调解员管理。
 
@@ -647,7 +648,7 @@ class GridManagerPerformanceScoreForm(forms.ModelForm):
         return cleaned_data
 
 
-class GridManagerPerformanceScoreAdmin(admin.ModelAdmin):
+class GridManagerPerformanceScoreAdmin(DetailButtonMixin, admin.ModelAdmin):
     """
     网格管理员端 - 绩效打分。
 

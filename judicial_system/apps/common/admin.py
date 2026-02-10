@@ -4,10 +4,11 @@ from django.contrib import admin
 
 from apps.users.models import User
 from config.admin_sites import admin_site, grid_manager_site
+from utils.admin_mixins import DetailButtonMixin
 from .models import Attachment, MapConfig
 
 
-class AttachmentAdmin(admin.ModelAdmin):
+class AttachmentAdmin(DetailButtonMixin, admin.ModelAdmin):
     """附件管理（管理员后台，可删除和修改）。"""
 
     list_display = ("id", "file", "file_type", "file_size", "original_name")
@@ -15,7 +16,7 @@ class AttachmentAdmin(admin.ModelAdmin):
     search_fields = ("original_name",)
 
 
-class AttachmentReadOnlyAdmin(admin.ModelAdmin):
+class AttachmentReadOnlyAdmin(DetailButtonMixin, admin.ModelAdmin):
     """附件管理（网格管理员后台，管理员可修改删除，网格管理员只能新增）。"""
 
     list_display = ("id", "file", "file_type", "file_size", "original_name")
@@ -32,7 +33,7 @@ class AttachmentReadOnlyAdmin(admin.ModelAdmin):
         return False
 
 
-class MapConfigAdmin(admin.ModelAdmin):
+class MapConfigAdmin(DetailButtonMixin, admin.ModelAdmin):
     """地图配置管理。"""
 
     list_display = ("id", "zoom_level", "center_longitude", "center_latitude", "is_active", "created_at")
