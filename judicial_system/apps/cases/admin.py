@@ -224,6 +224,9 @@ class TaskAdmin(DetailButtonMixin, ImportMixin, ExcelImportExportMixin, admin.Mo
         ("时间", {"fields": ("created_at", "updated_at")}),
     )
 
+    def get_list_display_links(self, request, list_display):
+        return ("id",)
+
     def get_queryset(self, request):
         """排除已归档的任务。"""
         qs = super().get_queryset(request)
