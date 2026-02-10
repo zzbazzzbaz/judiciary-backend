@@ -9,6 +9,7 @@ from .models import Activity, Article, ArticleViewLog, Category, ContentAttachme
 
 class CategoryAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "sort_order", "created_at")
+    search_fields = ("name",)
     ordering = ("sort_order", "id")
     list_editable = ("sort_order",)
 
@@ -26,7 +27,7 @@ class ArticleAdmin(DetailButtonMixin, admin.ModelAdmin):
     )
     search_fields = ("title",)
     list_filter = ("status", "category")
-    autocomplete_fields = ('files',)
+    autocomplete_fields = ('files', 'category')
     list_editable = ("status","sort_order")
     ordering = ("sort_order","-created_at",)
     readonly_fields = ("publisher",)
@@ -52,6 +53,7 @@ class ActivityAdmin(DetailButtonMixin, admin.ModelAdmin):
 
 class DocumentCategoryAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "sort_order", "created_at")
+    search_fields = ("name",)
     ordering = ("sort_order", "id")
     list_editable = ("sort_order",)
 
@@ -60,12 +62,14 @@ class DocumentAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "name", "category", "file", "created_at")
     search_fields = ("name",)
     list_filter = ("category",)
+    autocomplete_fields = ("category",)
 
 
 class ArticleViewLogAdmin(DetailButtonMixin, admin.ModelAdmin):
     list_display = ("id", "article", "user", "viewed_at")
     search_fields = ("article__title", "user__username", "user__name")
     list_filter = ("viewed_at",)
+    autocomplete_fields = ("article", "user")
     ordering = ("-viewed_at", "-id")
 
 

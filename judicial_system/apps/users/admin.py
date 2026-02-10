@@ -237,7 +237,7 @@ class UserAdmin(DetailButtonMixin, ImportMixin, ExcelImportMixin, BaseUserAdmin)
     list_filter = ("role", "is_active", "organization", "grid")
     search_fields = ("username", "name", "phone", "id_card")
     ordering = ("-id",)
-    autocomplete_fields = ("grid",)
+    autocomplete_fields = ("grid", "organization")
 
     readonly_fields = ("last_login", "created_at", "updated_at")
 
@@ -412,6 +412,7 @@ class OrganizationAdmin(DetailButtonMixin, admin.ModelAdmin):
     search_fields = ("name",)
     list_filter = ("is_active",)
     list_editable = ("sort_order",)
+    autocomplete_fields = ("parent",)
     ordering = ("sort_order", "id")
 
 
@@ -565,6 +566,7 @@ class GridManagerUserAdmin(DetailButtonMixin, BaseUserAdmin):
     list_filter = ("is_active", "organization")
     search_fields = ("username", "name", "phone", "id_card")
     ordering = ("-id",)
+    autocomplete_fields = ("organization",)
 
     readonly_fields = ("last_login", "created_at", "updated_at", "role", "grid")
 

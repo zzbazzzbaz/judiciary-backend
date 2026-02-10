@@ -161,7 +161,7 @@ class TaskAdmin(DetailButtonMixin, ImportMixin, ExcelImportExportMixin, admin.Mo
     excel_template_file = "任务导入模板.xlsx"
     change_list_template = "admin/cases/task/change_list.html"
     actions = ["archive_tasks"]
-    autocomplete_fields = ("reporter", "assigner", "assigned_mediator")
+    autocomplete_fields = ("reporter", "assigner", "assigned_mediator", "task_type", "town", "grid")
 
     class Media:
         js = ("admin/js/task_grid_filter.js",)
