@@ -38,7 +38,92 @@ def get_attachments_from_ids(ids_str: str) -> list:
 from utils.code_generator import generate_task_code
 
 from .models import ArchivedTask, CaseArchive, CaseArchiveFile, Task, TaskStatReport, TaskType, Town, UnassignedTask
-from .resources import CaseArchiveResource
+from .resources import CaseArchiveResource, TaskResource
+
+
+class ExcelImportExportMixin:
+    """Excel 导入导出 Mixin，提供模板下载和友好错误提示。"""
+
+    excel_template_file = ""  # 子类需要设置模板文件名
+
+    def get_urls(self):
+        """添加模板下载 URL。"""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "download-template/",
+                self.admin_site.admin_view(self.download_template_view),
+                name=f"{self.model._meta.app_label}_{self.model._meta.model_name}_download_template",
+            ),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        """下载导入模板文件。"""
+        if not self.excel_template_file:
+            messages.error(request, "模板文件未配置")
+            return redirect("../")
+
+        template_path = getattr(settings, "IMPORT_TEMPLATES_DIR", None)
+        if not template_path:
+            messages.error(request, "模板目录未配置")
+            return redirect("../")
+
+        file_path = os.path.join(template_path, self.excel_template_file)
+        if not os.path.exists(file_path):
+            messages.error(request, f"模板文件不存在: {self.excel_template_file}")
+            return redirect("../")
+
+        response = FileResponse(
+            open(file_path, "rb"),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        from urllib.parse import quote
+        encoded_filename = quote(self.excel_template_file)
+        response["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
+        return response
+
+    def get_import_formats(self):
+        """只支持 Excel 格式。"""
+        return [XLSX]
+
+    def generate_log_entries(self, result, request):
+        """生成导入日志并显示详细错误信息。"""
+        if result.has_errors():
+            # 收集所有错误信息
+            error_messages = []
+            for row_errors in result.row_errors():
+                row_number, errors = row_errors
+                for error in errors:
+                    error_msg = str(error.error)
+                    error_messages.append(f"第 {row_number + 1} 行: {error_msg}")
+
+            # 显示错误摘要
+            if error_messages:
+                error_summary = "<br>".join(error_messages[:10])  # 最多显示10条
+                if len(error_messages) > 10:
+                    error_summary += f"<br>...还有 {len(error_messages) - 10} 条错误"
+                messages.error(
+                    request,
+                    format_html(
+                        "导入失败，共 {} 条错误：<br>{}",
+                        len(error_messages),
+                        format_html(error_summary),
+                    ),
+                )
+        else:
+            # 统计导入结果
+            new_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_NEW)
+            update_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_UPDATE)
+            skip_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_SKIP)
+
+            if new_count > 0 or update_count > 0:
+                messages.success(
+                    request,
+                    f"导入成功！新增 {new_count} 条，更新 {update_count} 条，跳过 {skip_count} 条。",
+                )
+
+        return super().generate_log_entries(result, request)
 
 
 class TaskAdminForm(forms.ModelForm):
@@ -68,10 +153,13 @@ class TaskAdminForm(forms.ModelForm):
         return cleaned_data
 
 
-class TaskAdmin(DetailButtonMixin, admin.ModelAdmin):
-    """任务管理（纠纷/法律援助、分派与调解结果）。"""
+class TaskAdmin(DetailButtonMixin, ImportMixin, ExcelImportExportMixin, admin.ModelAdmin):
+    """任务管理（纠纷/法律援助、分派与调解结果），支持 Excel 导入。"""
 
     form = TaskAdminForm
+    resource_class = TaskResource
+    excel_template_file = "任务导入模板.xlsx"
+    change_list_template = "admin/cases/task/change_list.html"
     actions = ["archive_tasks"]
     autocomplete_fields = ("reporter", "assigner", "assigned_mediator")
 
@@ -382,91 +470,6 @@ class ArchivedTaskAdmin(admin.ModelAdmin):
             "opts": self.model._meta,
         }
         return render(request, self.change_list_template, context)
-
-
-class ExcelImportExportMixin:
-    """案件归档 Excel 导入导出 Mixin，提供模板下载和友好错误提示。"""
-
-    excel_template_file = ""  # 子类需要设置模板文件名
-
-    def get_urls(self):
-        """添加模板下载 URL。"""
-        urls = super().get_urls()
-        custom_urls = [
-            path(
-                "download-template/",
-                self.admin_site.admin_view(self.download_template_view),
-                name=f"{self.model._meta.app_label}_{self.model._meta.model_name}_download_template",
-            ),
-        ]
-        return custom_urls + urls
-
-    def download_template_view(self, request):
-        """下载导入模板文件。"""
-        if not self.excel_template_file:
-            messages.error(request, "模板文件未配置")
-            return redirect("../")
-
-        template_path = getattr(settings, "IMPORT_TEMPLATES_DIR", None)
-        if not template_path:
-            messages.error(request, "模板目录未配置")
-            return redirect("../")
-
-        file_path = os.path.join(template_path, self.excel_template_file)
-        if not os.path.exists(file_path):
-            messages.error(request, f"模板文件不存在: {self.excel_template_file}")
-            return redirect("../")
-
-        response = FileResponse(
-            open(file_path, "rb"),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        from urllib.parse import quote
-        encoded_filename = quote(self.excel_template_file)
-        response["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
-        return response
-
-    def get_import_formats(self):
-        """只支持 Excel 格式。"""
-        return [XLSX]
-
-    def generate_log_entries(self, result, request):
-        """生成导入日志并显示详细错误信息。"""
-        if result.has_errors():
-            # 收集所有错误信息
-            error_messages = []
-            for row_errors in result.row_errors():
-                row_number, errors = row_errors
-                for error in errors:
-                    error_msg = str(error.error)
-                    error_messages.append(f"第 {row_number + 1} 行: {error_msg}")
-
-            # 显示错误摘要
-            if error_messages:
-                error_summary = "<br>".join(error_messages[:10])  # 最多显示10条
-                if len(error_messages) > 10:
-                    error_summary += f"<br>...还有 {len(error_messages) - 10} 条错误"
-                messages.error(
-                    request,
-                    format_html(
-                        "导入失败，共 {} 条错误：<br>{}",
-                        len(error_messages),
-                        format_html(error_summary),
-                    ),
-                )
-        else:
-            # 统计导入结果
-            new_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_NEW)
-            update_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_UPDATE)
-            skip_count = sum(1 for row in result.rows if row.import_type == RowResult.IMPORT_TYPE_SKIP)
-
-            if new_count > 0 or update_count > 0:
-                messages.success(
-                    request,
-                    f"导入成功！新增 {new_count} 条，更新 {update_count} 条，跳过 {skip_count} 条。",
-                )
-
-        return super().generate_log_entries(result, request)
 
 
 class CaseArchiveFileInline(admin.TabularInline):
