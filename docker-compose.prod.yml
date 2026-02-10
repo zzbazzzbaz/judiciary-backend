@@ -5,7 +5,7 @@
 
 services:
   web:
-    image: ghcr.io/zzbazzzbaz/judiciary-backend:latest
+    image: gitea.chatgqt.top/gqt/judiciary-backend:latest
     container_name: judiciary-backend
     restart: always
 
@@ -24,15 +24,15 @@ services:
     environment:
       # Django 核心配置
       - DJANGO_SECRET_KEY=django-insecure-5gzvjhuxw^2!x!zo6ux+skvm**%3cxn2m73^*z#ds_g=l_z)6p
-      - DJANGO_ALLOWED_HOSTS=judiciary.api.chatgqt.top,localhost,127.0.0.1
+      - DJANGO_ALLOWED_HOSTS=zbfazhilinghang.com,localhost,127.0.0.1
       - DEBUG=False
 
       # CORS 和 CSRF 配置 (全部开放 - 注意安全风险)
       - CORS_ALLOW_ALL_ORIGINS=True
-      - CSRF_TRUSTED_ORIGINS=https://judiciary.api.chatgqt.top
+      - CSRF_TRUSTED_ORIGINS=https://zbfazhilinghang.com
 
       # 后端基础 URL
-      - BACKEND_BASE_URL=https://judiciary.api.chatgqt.top
+      - BACKEND_BASE_URL=https://zbfazhilinghang.com
 
       # 腾讯地图 API
       - TENCENT_MAP_KEY=4H4BZ-OJACL-DKBPM-E7Y5H-5VSK5-KFFKK
