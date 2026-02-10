@@ -217,3 +217,4 @@ SILENCED_SYSTEM_CHECKS = ["ckeditor.W001"]
 # =============================================================================
 
 SIMPLEUI_HOME_INFO = False
+SIMPLEUI_LOGO = "/static/images/logo.jpg"

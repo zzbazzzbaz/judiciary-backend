@@ -12,7 +12,7 @@ from django.contrib.admin import AdminSite
 class AdminSite(AdminSite):
     """管理员后台"""
 
-    site_header = "司法监管系统 - 管理员后台"
+    site_header = "镇巴法治e家 - 管理员后台"
     site_title = "管理员后台"
     index_title = "系统管理"
 
@@ -29,7 +29,7 @@ class AdminSite(AdminSite):
 class GridManagerSite(AdminSite):
     """网格负责人后台"""
 
-    site_header = "司法监管系统 - 网格管理后台"
+    site_header = "镇巴法治e家 - 网格管理后台"
     site_title = "网格管理后台"
     index_title = "网格管理"
 

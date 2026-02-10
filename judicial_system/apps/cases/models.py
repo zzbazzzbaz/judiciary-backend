@@ -285,3 +285,37 @@ class CaseArchive(models.Model):
 
     def __str__(self) -> str:
         return f"{self.case_number} - {self.applicant}"
+
+
+class CaseArchiveFile(models.Model):
+    """案件归档附件表（cases_case_archive_file）。"""
+
+    archive = models.ForeignKey(
+        CaseArchive,
+        on_delete=models.CASCADE,
+        related_name="files",
+        verbose_name="所属归档案件",
+    )
+    file = models.FileField("文件", upload_to="case_archive/%Y/%m/")
+    original_name = models.CharField("原始文件名", max_length=255, blank=True, default="")
+    file_size = models.BigIntegerField("文件大小(字节)", default=0)
+    created_at = models.DateTimeField("上传时间", auto_now_add=True)
+
+    class Meta:
+        db_table = "cases_case_archive_file"
+        verbose_name = "归档附件"
+        verbose_name_plural = verbose_name
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return ""
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.original_name:
+            self.original_name = self.file.name
+        if self.file and not self.file_size:
+            try:
+                self.file_size = self.file.size
+            except (OSError, AttributeError):
+                pass
+        super().save(*args, **kwargs)

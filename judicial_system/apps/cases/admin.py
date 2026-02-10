@@ -36,7 +36,7 @@ def get_attachments_from_ids(ids_str: str) -> list:
 
 from utils.code_generator import generate_task_code
 
-from .models import ArchivedTask, CaseArchive, Task, TaskStatReport, TaskType, Town, UnassignedTask
+from .models import ArchivedTask, CaseArchive, CaseArchiveFile, Task, TaskStatReport, TaskType, Town, UnassignedTask
 from .resources import CaseArchiveResource
 
 
@@ -471,12 +471,50 @@ class ExcelImportExportMixin:
         return super().generate_log_entries(result, request)
 
 
+class CaseArchiveFileInline(admin.TabularInline):
+    """案件归档附件内联。"""
+
+    model = CaseArchiveFile
+    extra = 1
+    fields = ("file_link", "file_size_display", "created_at")
+    readonly_fields = ("file_link", "file_size_display", "created_at")
+
+    def get_fields(self, request, obj=None):
+        """新增时显示上传控件，已有记录显示链接。"""
+        if obj is None:
+            return ("file",)
+        return ("file_link", "file_size_display", "created_at")
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        return ("file_link", "file_size_display", "created_at")
+
+    @admin.display(description="文件")
+    def file_link(self, obj):
+        if obj.pk and obj.file:
+            name = obj.original_name or obj.file.name.split("/")[-1]
+            return format_html('<a href="{}" target="_blank">{}</a>', obj.file.url, name)
+        return "-"
+
+    @admin.display(description="大小")
+    def file_size_display(self, obj):
+        if not obj.file_size:
+            return "-"
+        if obj.file_size < 1024:
+            return f"{obj.file_size} B"
+        if obj.file_size < 1024 * 1024:
+            return f"{obj.file_size / 1024:.1f} KB"
+        return f"{obj.file_size / 1024 / 1024:.1f} MB"
+
+
 class CaseArchiveAdmin(ImportMixin, ExcelImportExportMixin, admin.ModelAdmin):
     """案件归档管理，支持Excel导入导出。"""
 
     resource_class = CaseArchiveResource
     excel_template_file = "案件归档导入模板.xlsx"
     change_list_template = "admin/cases/casearchive/change_list.html"
+    inlines = [CaseArchiveFileInline]
 
     list_display = (
         "id",
